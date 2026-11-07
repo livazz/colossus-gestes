@@ -13,6 +13,7 @@
   --ground:#e2ddd2; --grid:#d3cdc0; --stone:#8e8c87; --stone-dk:#5b5a56; --slab:#a8a59e; --plate:#4c4a46;
   --shadow:rgba(44,50,112,.22); --accent:#b0532c; --blood:#a8232b; --rope:#8a6a3e; --gold:#b98a2e; --naphte:rgba(26,22,30,.62);
   --p1:#1d8c83; --p2:#cf8414; --p3:#5650c0; --p4:#bf3f8b; --on-dot:#ffffff;
+  --water:#3f7cac; --salt:#fbfaf5; --enemy:#43302b; --marsh:#8a7a5c;
   --display:"Marcellus","Iowan Old Style",Georgia,serif;
   --body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -23,6 +24,7 @@
     --ground:#262a30; --grid:#30353c; --stone:#8f8d88; --stone-dk:#55544f; --slab:#a7a49c; --plate:#3a3935;
     --shadow:rgba(0,0,0,.4); --accent:#e07b50; --blood:#d4434b; --rope:#c49b63; --gold:#dcae4a; --naphte:rgba(5,4,8,.7);
     --p1:#38c2b5; --p2:#f0a637; --p3:#8a84f2; --p4:#e56ab6; --on-dot:#ffffff; color-scheme:dark;
+    --water:#5f9fd3; --salt:#e9e4d8; --enemy:#c7ad8f; --marsh:#4d4536;
   }
 }
 :root[data-theme="dark"]{
@@ -30,6 +32,7 @@
   --ground:#262a30; --grid:#30353c; --stone:#8f8d88; --stone-dk:#55544f; --slab:#a7a49c; --plate:#3a3935;
   --shadow:rgba(0,0,0,.4); --accent:#e07b50; --blood:#d4434b; --rope:#c49b63; --gold:#dcae4a; --naphte:rgba(5,4,8,.7);
   --p1:#38c2b5; --p2:#f0a637; --p3:#8a84f2; --p4:#e56ab6; --on-dot:#ffffff; color-scheme:dark;
+    --water:#5f9fd3; --salt:#e9e4d8; --enemy:#c7ad8f; --marsh:#4d4536;
 }
 html,body{background:var(--bg)}
 body{color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
@@ -80,7 +83,7 @@ ul.roles li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:sta
 <div class="wrap">
   <header>
     <h1>Gestes contre les colosses</h1>
-    <p class="lede">Les gestes déjà dans le jeu, puis huit idées de nouvelles mécaniques, vus de dessus. Choisis un geste et un nombre de joueurs : l'animation montre ce que chacun fait et ce que la coopération change.</p>
+    <p class="lede">Les gestes déjà dans le jeu, huit idées de nouvelles mécaniques, et sept idées pour sauver un colosse, vus de dessus. Choisis un geste et un nombre de joueurs : l'animation montre ce que chacun fait et ce que la coopération change.</p>
   </header>
 
   <section class="controls" aria-label="Choix">
@@ -91,6 +94,10 @@ ul.roles li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:sta
     <div class="group">
       <span class="label" id="lbl-idee">Idées, rien n'est codé</span>
       <div class="tabs" id="tabs-idee" role="group" aria-labelledby="lbl-idee"></div>
+    </div>
+    <div class="group">
+      <span class="label" id="lbl-sauver">Sauver un colosse : idées, rien n'est codé</span>
+      <div class="tabs" id="tabs-sauver" role="group" aria-labelledby="lbl-sauver"></div>
     </div>
     <div class="group">
       <span class="label" id="lbl-n">Joueurs</span>
@@ -651,6 +658,283 @@ const JEU=[
   coop:n=>n===1?"Seul, il suffit de se placer : devant il avance, sur un côté il tourne, au milieu il s'arrête.":"Dans le jeu, une seule personne le dirige : le héros debout sur le pont. Il n'y a pas encore de règle à plusieurs, les autres suivent au sol."},
 ];
 
+/* ---------- Sauver un colosse : outils ---------- */
+function squad(st,cx,cy,count,t,die,seed){
+  for(let k=0;k<count;k++){const a=k*2.4+seed,r=9+(k%3)*7,x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;
+    if(t<die) st.props.push({k:'soldier',x,y}); else if(t<die+.4) st.fx.push({k:'hit',x,y,p:seg(t,die,die+.4)});}
+}
+function chips(st,pt,t,a,b){ if(t>a&&t<b){const ph=((t-a)*2.6)%1; if(ph<.45) st.fx.push({k:'chip',x:pt.x,y:pt.y,p:ph/.45});}}
+function label(st,c,s,t,a,b){ if(t>a&&t<b){const h=cpt(c,60,0); st.fx.push({k:'text',x:h.x,y:h.y-70,s});}}
+
+/* ---------- S1. Briser ses chaînes ---------- */
+function chains(t,n){
+  const st=S(), stakes=[[150,92],[650,92],[650,432],[150,432]], legs=[[-58,-54],[58,-54],[58,54],[-58,54]];
+  const plan={1:{cuts:[[0,0,2.6],[0,1,5.8],[0,2,9]],self:3,free:9.6},2:{cuts:[[0,0,2.6],[1,1,2.8],[0,3,5.6]],self:2,free:6.2},3:{cuts:[[0,0,2.6],[1,1,2.8],[2,2,3]],self:3,free:3.6}}[Math.min(n,3)];
+  const free=plan.free, c=col(400,262,0); st.c=c;
+  if(t<free){c.kneel=.45;c.shake=.45;} else c.x=L(400,560,ease(seg(t,free+.3,free+2)));
+  const cutAt=[99,99,99,99]; plan.cuts.forEach(([i,ch,T])=>{cutAt[ch]=T;}); cutAt[plan.self]=free;
+  stakes.forEach((s,ch)=>{
+    const sp={x:s[0],y:s[1]}, leg=cpt(c,legs[ch][0],legs[ch][1]), T=cutAt[ch];
+    st.props.push({k:'stake',x:sp.x,y:sp.y});
+    if(t<T+.6) st.ropes.push({a:leg,b:sp,tension:.9,chain:true,broken:t>=T,bt:t-T});
+    squad(st,L(sp.x,400,.18),L(sp.y,262,.18),5,t,ch===plan.self?free+.5:T-.9,ch*1.3);
+  });
+  const rc=path(t,[[3,860,262],[5,700,262]]);
+  if(t>3) squad(st,rc.x,rc.y,6,t,n===4?5:free+1.7,.7);
+  const runs={1:[[0,[[0,60,262],[1.4,87,50],[2,170,106],[2.6,170,106],[4.6,712,50],[5.2,630,106],[5.8,630,106],[7.8,712,474],[8.4,630,418],[9,630,418],[10,740,505]]]],
+    2:[[0,[[0,60,200],[1.4,87,50],[2,170,106],[2.6,170,106],[4.6,87,474],[5,170,418],[5.6,170,418],[6.4,90,300]]],[1,[[0,740,30],[1.6,712,50],[2.2,630,106],[2.8,630,106],[3.6,730,40]]]],
+    3:[[0,[[0,60,200],[1.4,87,50],[2,170,106],[2.6,170,106],[3.4,90,40]]],[1,[[0,740,30],[1.6,712,50],[2.2,630,106],[2.8,630,106],[3.6,730,40]]],[2,[[0,740,505],[1.8,712,474],[2.4,630,418],[3,630,418],[3.8,730,500]]]]};
+  const list=runs[Math.min(n,3)].slice();
+  if(n===4) list.push([3,[[0,780,505],[4,760,400],[4.9,705,262],[5.6,600,170]]]);
+  list.forEach(([i,pts])=>{const p=path(t,pts); st.players.push({x:p.x,y:p.y,i});});
+  plan.cuts.forEach(([i,ch,T])=>hits(st,{x:stakes[ch][0],y:stakes[ch][1]},t,T-.6,T,3));
+  label(st,c,'libre',t,free,free+1.5);
+  const done=cutAt.filter(x=>t>x).length;
+  st.meter={label:'Chaînes brisées',v:done/4,txt:done+' / 4'};
+  c.life=1; return st;
+}
+
+/* ---------- S2. Arracher la lance ---------- */
+const SPEAR_OUT={1:8.4,2:5.2,3:4.6,4:4};
+function spear(t,n){
+  const st=S(), out=SPEAR_OUT[n], tf=Math.min(t,out), wob=n>=3?.25:1, calm=t>out;
+  const c=col(400+40*wob*Math.sin(tf*.7),262+30*wob*Math.sin(tf*.9),.25*wob*Math.sin(tf*.6)); st.c=c;
+  if(!calm){ c.shake=.35; const ph=t%2.5, f=cpt(c,58,Math.floor(t/2.5)%2?54:-54); if(ph<.4) st.fx.push({k:'snap',x:f.x,y:f.y,p:ph/.4}); }
+  else c.kneel=.2*ease(seg(t,out,out+.8));
+  c.spear=!calm;
+  const tip=cpt(c,-70,-92), base=cpt(c,-22,-12);
+  if(calm&&t<out+1.2){const k=ease(seg(t,out,out+1.2)); st.props.push({k:'spearFly',over:true,x:L(tip.x,tip.x-120,k),y:L(tip.y,tip.y-70,k),a:Math.atan2(tip.y-base.y,tip.x-base.x)+k*1.5,al:1-seg(t,out+.6,out+1.2)});}
+  const P=n===1?[[0,[[0,120,470],[1.8,200,150],[2.2,200,150],[4.8,90,60],[5.4,90,60],[6.2,190,140],[6.4,190,140],[8.4,70,40],[9.4,120,120]]]]
+               :[[0,[[0,120,470],[1.8,200,150],[2.4,200,150],[out,120,60],[out+1,180,120]]],[1,[[0,520,30],[1.8,330,90],[2.4,330,90],[out,300,20],[out+1,330,80]]]];
+  P.forEach(([i,pts])=>{
+    const p=path(t,pts); st.players.push({x:p.x,y:p.y,i});
+    arrow(st,p,tip,t,2.15+i*.15,.35);
+    if(t>2.5+i*.15&&t<out){
+      const ten=n===1?(t<4.8?.15+.75*seg(t,2.4,4.6):t<6.4?.3:.3+.65*seg(t,6.4,out)):.3+.65*seg(t,2.4,out);
+      st.ropes.push({a:tip,b:p,tension:ten});
+    }
+  });
+  if(n===1&&t>4.4&&t<5.4) st.fx.push({k:'text',x:tip.x,y:tip.y-26,s:'elle bouge à peine'});
+  if(n>=3){const p=path(t,[[0,400,520],[1,430,470]]); st.players.push({x:p.x,y:p.y,i:2}); horn(st,2,p,t,1.2,out+.4);}
+  if(n===4){
+    let p; if(t<1.6){const g=cpt(c,-58,96); p=path(t,[[0,740,480],[1.5,g.x,g.y]]);} else {const q=path(t,[[1.6,-58,96],[2,-58,58],[2.4,-30,0]]); p=cpt(c,q.x,q.y);}
+    st.players.push({x:p.x,y:p.y,i:3,on:t>1.9}); hits(st,base,t,2.5,out,3);
+  }
+  label(st,c,'calmé',t,out+.2,out+1.8);
+  const v=calm?1-.85*seg(t,out,out+1):1;
+  st.meter={label:'Douleur',v,txt:Math.round(v*100)+' %'};
+  c.life=1; return st;
+}
+
+/* ---------- S3. Chasser son cavalier ---------- */
+const RIDER={1:{grab:2.2,thr:6.6},2:{grab:2.2,thr:5.4},3:{grab:1.8,thr:4.8},4:{grab:1.8,thr:4.4}};
+function rider(t,n){
+  const st=S(), {grab,thr}=RIDER[n], x0=180+220*(n>=3?.75:1);
+  const x=L(180,x0,ease(seg(t,0,thr))), turn=ease(seg(t,thr+.6,thr+1.6)), go=ease(seg(t,thr+1.6,thr+3.8));
+  const c=col(x+Math.cos(.75)*200*go,262+Math.sin(.75)*200*go,.75*turn); st.c=c;
+  const nape=cpt(c,96,0);
+  if(t<thr) st.props.push({k:'general',x:nape.x,y:nape.y,over:true});
+  else { const land={x:nape.x-30,y:nape.y-130}, k=ease(seg(t,thr,thr+.6)), np=t<thr+.6?nape:land;
+    st.props.push({k:'general',x:L(np.x,land.x,k),y:L(np.y,land.y,k),down:t>thr+.6,over:t<thr+.6});
+    if(t>thr+.6&&t<thr+1.1) st.fx.push({k:'snap',x:land.x,y:land.y,p:seg(t,thr+.6,thr+1.1)}); }
+  squad(st,x0+222,462,6,t,thr+3.6,.9);
+  const climber=(i,side,from,a0,lp,fightA)=>{
+    let p; if(t<a0){const g=cpt(c,-64,side*96); p=path(t,[[0,from.x,from.y],[a0-.1,g.x,g.y]]);} else {const q=path(t,lp); p=cpt(c,q.x,q.y);}
+    st.players.push({x:p.x,y:p.y,i,on:t>=a0+.3}); hits(st,nape,t,fightA,thr,3);
+  };
+  climber(0,1,{x:560,y:470},grab,[[grab,-64,96],[grab+.6,-58,58],[grab+1.2,-14,16],[grab+1.8,70,6],[thr,70,6],[thr+.5,-12,-22],[thr+1.7,-12,-22],[thr+2.2,-12,0]],grab+1.9);
+  hits(st,cpt(c,-12,-34),t,thr+.6,thr+1.6,3);
+  if(n===4) climber(3,-1,{x:300,y:40},grab+.3,[[grab+.3,-64,-96],[grab+.9,-58,-58],[grab+1.5,-14,-16],[grab+2.1,72,-14],[thr,72,-14],[thr+.6,-12,22]],grab+2.2);
+  if(n>=2){const p=path(t,[[0,640,140],[1.2,560,120]]); st.players.push({x:p.x,y:p.y,i:1}); if(t<thr) arrowsLoop(st,p,nape,t,1.5,thr,1.3);}
+  if(n>=3){const p=path(t,[[0,780,262],[.8,660,262],[thr,660,262],[thr+1,700,140]]); st.players.push({x:p.x,y:p.y,i:2}); horn(st,2,p,t,.9,thr);}
+  label(st,c,'allié',t,thr+.3,thr+1.9);
+  if(t<thr){const v=1-seg(t,grab+1.6,thr); st.meter={label:'Général ennemi',v,txt:Math.round(v*100)+' %'};}
+  else st.meter={label:'Le colosse',v:1,txt:'allié'};
+  c.life=1; return st;
+}
+
+/* ---------- S4. Le sortir du piège ---------- */
+function mire(t,n){
+  const st=S(); st.props.push({k:'marsh',x:300,y:272,rx:175,ry:125});
+  const H=[2,4,6,8,10], inc=n===1?.1:1/(6-n), outT=n===1?99:2+(5-n)*2+.7;
+  let p=0, heave=false; H.forEach(h=>{ p+=inc*seg(t,h,h+.7); if(t>h&&t<h+.7&&t<outT) heave=true; });
+  p=clamp(p);
+  const c=col(L(300,500,p)+(t>outT?60*ease(seg(t,outT,outT+1.5)):0),272,0); st.c=c;
+  c.sunk=1-p; c.kneel=.7*(1-p);
+  if(heave){c.shake=1; st.fx.push({k:'text',x:c.x+20,y:c.y-82,s:'il pousse'});}
+  [272,212,332,152].slice(0,n).forEach((yy,i)=>{
+    const anchor=cpt(c,104,(i-(n-1)/2)*10), base=Math.min(780,640+220*p), pull=heave?24:0;
+    const pp=t<1?path(t,[[0,800,yy],[1,base,yy]]):{x:Math.min(785,base+pull),y:yy};
+    st.players.push({x:pp.x,y:pp.y,i});
+    arrow(st,pp,anchor,t,.9+i*.1,.3);
+    if(t>1.2+i*.1&&t<outT+.6) st.ropes.push({a:anchor,b:pp,tension:heave?.95:.55});
+  });
+  label(st,c,'libre',t,outT,outT+1.6);
+  st.meter={label:'Sorti du marais',v:p,txt:Math.round(p*100)+' %'};
+  c.life=1; return st;
+}
+
+/* ---------- S5. L'escorter jusqu'à l'eau ---------- */
+function escort(t,n){
+  const st=S(), W={x:742,y:236}, B={x:430,y:66};
+  st.props.push({k:'water',x:W.x,y:W.y,r:48},{k:'ballista',x:B.x,y:B.y,a:PI/2});
+  const k=seg(t,.5,10.8), c=col(L(80,650,k),L(340,262,k),Math.atan2(262-340,650-80)); st.c=c; c.kneel=.15;
+  const arrived=t>10.8;
+  c.cistern=arrived?.9*ease(seg(t,10.8,11.8)):0;
+  if(arrived&&t<11.8) st.fx.push({k:'splash',x:W.x-30,y:W.y+10,p:((t-10.8)*2)%1});
+  const crewDie=n>=2?3.6:99; squad(st,B.x,B.y-26,3,t,crewDie,.4);
+  let dmg=0;
+  [2.5,5,7.5,10].forEach(s=>{ if(s<crewDie){ bolt(st,B,cpt(c,0,0),t,s); if(t>s+.5) dmg+=.14; } });
+  const wA=path(t,[[3.6,420,560],[5.6,360,430]]), wB=path(t,[[5.6,640,60],[7.6,560,318]]);
+  const dA=n>=3?6.2:99, dB=n===4?8.2:n===3?8.4:99;
+  if(t>3.6) squad(st,wA.x,wA.y,5,t,dA,1.1);
+  if(t>5.6) squad(st,wB.x,wB.y,5,t,dB,2.3);
+  dmg+=.03*act(t,5.6,Math.min(dA,10.8))+.03*act(t,7.6,Math.min(dB,10.8));
+  const g=cpt(c,135,0), p1=t<.6?path(t,[[0,240,200],[.6,g.x,g.y]]):g;
+  st.players.push({x:p1.x,y:p1.y,i:0}); if(!arrived) horn(st,0,p1,t,.6,10.8);
+  if(n>=2){const p=path(t,[[0,80,140],[2.6,330,70],[3.1,405,56]]); st.players.push({x:p.x,y:p.y,i:1}); hits(st,{x:B.x,y:B.y-26},t,3.1,3.6,3);}
+  if(n>=3){const pts=[[0,120,480],[5.2,300,470],[5.6,wA.x-20,wA.y+10]]; if(n===3) pts.push([6.4,wA.x-20,wA.y+10],[7.4,wB.x+10,wB.y-30]);
+    const p=path(t,pts); st.players.push({x:p.x,y:p.y,i:2}); hits(st,wA,t,5.6,6.2,3); if(n===3) hits(st,wB,t,7.8,8.4,3);}
+  if(n===4){const p=path(t,[[0,760,60],[7.2,wB.x+10,wB.y-30]]); st.players.push({x:p.x,y:p.y,i:3}); hits(st,wB,t,7.6,8.2,3);}
+  c.life=Math.max(0,1-dmg);
+  label(st,c,n===1?'de justesse':'sauvé',t,10.9,12);
+  return st;
+}
+
+/* ---------- S6. Le soigner ---------- */
+function healPlan(n){
+  if(n===1) return {pours:[2.8,7.4],full:99};
+  const sched={2:[[0,1.8]],3:[[0,1.8],[2,3]],4:[[0,1.8],[2,2.6],[3,3.4]]}[n], d=[];
+  sched.forEach(([i,t0])=>{for(let k=0;k<5;k++) d.push([t0+1.2+k*2.4,i]);});
+  d.sort((a,b)=>a[0]-b[0]); const first=d.slice(0,4);
+  return {sched,first,pours:first.map(x=>x[0]+.8),full:first[3][0]+.8};
+}
+function heal(t,n){
+  const st=S(), well={x:120,y:262}, plan=healPlan(n);
+  st.props.push({k:'well',x:well.x,y:well.y});
+  const c=col(470,262,PI); st.c=c;
+  const cis=cpt(c,-10,0);
+  let fill=0; plan.pours.forEach(pt=>{ fill+=.25*seg(t,pt-.4,pt); if(t>pt-.4&&t<pt+.2) st.fx.push({k:'splash',x:cis.x,y:cis.y,p:seg(t,pt-.4,pt+.2)}); });
+  c.cistern=fill; c.kneel=.6*(1-ease(seg(t,plan.full,plan.full+1)));
+  const spots={0:cpt(c,80,70),2:cpt(c,80,-70),3:cpt(c,112,30)};
+  if(n===1){
+    const P=4.6, t0=.2, sp=spots[0], top=cpt(c,-10,30), W={x:well.x+20,y:well.y};
+    let p=W, carry=false;
+    if(t>=t0){ const u=(t-t0)%P;
+      if(u<1.4){p={x:L(W.x,sp.x,ease(u/1.4)),y:L(W.y,sp.y,ease(u/1.4))};carry=true;}
+      else if(u<2.2){p={x:L(sp.x,top.x,ease((u-1.4)/.8)),y:L(sp.y,top.y,ease((u-1.4)/.8))};carry=true;}
+      else if(u<2.6) p=top;
+      else if(u<3.2) p={x:L(top.x,sp.x,ease((u-2.6)/.6)),y:L(top.y,sp.y,ease((u-2.6)/.6))};
+      else p={x:L(sp.x,W.x,ease((u-3.2)/1.4)),y:L(sp.y,W.y,ease((u-3.2)/1.4))};
+      const on=u>1.6&&u<3.1; st.players.push({x:p.x,y:p.y,i:0,on}); }
+    else st.players.push({x:W.x,y:W.y,i:0});
+    if(carry) st.props.push({k:'jar',x:p.x,y:p.y-18,over:true});
+  } else {
+    const stopAt=plan.full-1.2;
+    plan.sched.forEach(([i,t0])=>{
+      const sp=spots[i], W={x:well.x+20,y:well.y+(i-1)*16};
+      let p, carry=false;
+      if(t<t0) p=path(t,[[0,well.x-50,well.y+90+i*20],[t0,W.x,W.y]]);
+      else { const k=Math.floor((t-t0)/2.4), u=(t-t0)-k*2.4;
+        if(t0+k*2.4>stopAt) p=W;
+        else if(u<1.2){p={x:L(W.x,sp.x,ease(u/1.2)),y:L(W.y,sp.y,ease(u/1.2))};carry=true;}
+        else if(u<1.3) p=sp;
+        else p={x:L(sp.x,W.x,ease((u-1.3)/1.1)),y:L(sp.y,W.y,ease((u-1.3)/1.1))}; }
+      st.players.push({x:p.x,y:p.y,i});
+      if(carry) st.props.push({k:'jar',x:p.x,y:p.y-18,over:true});
+    });
+    const top=cpt(c,-10,30), p2=t<1.4?path(t,[[0,560,480],[1.4,top.x,top.y]]):top;
+    st.players.push({x:p2.x,y:p2.y,i:1,on:t>1});
+    plan.first.forEach(([d,i])=>{ if(t>d&&t<d+.5){const k=seg(t,d,d+.5),sp=spots[i]; st.props.push({k:'jar',over:true,x:L(sp.x,cis.x,k),y:L(sp.y,cis.y,k)});} });
+  }
+  label(st,c,'sauvé',t,plan.full+.3,plan.full+2);
+  st.meter={label:'Citerne',v:fill,txt:Math.round(fill*100)+' %'};
+  c.life=1; return st;
+}
+
+/* ---------- S7. Le réveiller ---------- */
+const SALT=[[-58,54],[58,-54],[-40,-20],[0,22],[40,-18],[96,0]];
+const SALTPLAN={1:{who:[[0,[[0,1.8],[1,3.4],[2,5.2],[3,7.6],[4,9],[5,10.4]],{x:120,y:470}]],wake:10.8},
+ 2:{who:[[1,[[0,1.8],[1,3.2]],{x:100,y:500}],[0,[[2,3],[3,4.4],[4,5.8],[5,7.2]],{x:120,y:40}]],wake:7.6},
+ 3:{who:[[1,[[0,1.8],[1,3.2]],{x:100,y:500}],[0,[[2,3],[4,4.4]],{x:120,y:40}],[2,[[3,3.2],[5,4.6]],{x:740,y:500}]],wake:5},
+ 4:{who:[[1,[[0,1.8]],{x:100,y:500}],[3,[[1,1.8]],{x:740,y:40}],[0,[[2,2.8],[4,4.2]],{x:120,y:40}],[2,[[3,3],[5,4.4]],{x:740,y:500}]],wake:4.8}};
+function saltSpot(c,k){const s=SALT[k]; return k<2?cpt(c,s[0],s[1]*1.7):cpt(c,s[0]-16,s[1]);}
+function salt(t,n){
+  const st=S(), plan=SALTPLAN[n], wake=plan.wake, c=col(420,262,0); st.c=c;
+  const brk=[99,99,99,99,99,99]; plan.who.forEach(([i,acts])=>acts.forEach(([k,T])=>{brk[k]=T;}));
+  c.salt=SALT.map((s,k)=>({lx:s[0],ly:s[1],broken:t>brk[k]}));
+  c.frozen=1-ease(seg(t,wake,wake+.8)); c.kneel=.2*c.frozen;
+  if(t>wake&&t<wake+.8) c.shake=.9;
+  if(t>wake) c.a=-.35*ease(seg(t,wake+.6,wake+1.6));
+  plan.who.forEach(([i,acts,from])=>{
+    const pts=[[0,from.x,from.y]]; acts.forEach(([k,T])=>{const sp=saltSpot(c,k); pts.push([T-1.3,sp.x,sp.y],[T,sp.x,sp.y]);});
+    const p=path(t,pts); let on=false; acts.forEach(([k,T])=>{ if(k>=2&&t>T-1.4) on=true; });
+    st.players.push({x:p.x,y:p.y,i,on});
+    acts.forEach(([k,T])=>{const s=SALT[k], pt=cpt(c,s[0],s[1]); chips(st,pt,t,T-1.2,T); if(t>T&&t<T+.4) st.fx.push({k:'chip',x:pt.x,y:pt.y,p:seg(t,T,T+.4),big:true});});
+  });
+  if(n===1){ const pt=cpt(c,-22,2); hits(st,pt,t,5.5,6.1,3); if(t>5.5&&t<6.6) st.fx.push({k:'text',x:pt.x,y:pt.y-40,s:'à côté du sel : ça le blesse'}); }
+  label(st,c,'réveillé',t,wake+.4,wake+2);
+  const done=brk.filter(x=>t>x).length;
+  st.meter={label:'Sel brisé',v:done/6,txt:done+' / 6'};
+  c.life=1; return st;
+}
+
+const SAUVER=[
+ {id:'chaines',name:'Briser ses chaînes',tag:'épée + charge',what:"L'armée tient un colosse enchaîné à des piquets. On charge les soldats qui tirent les chaînes et on les tranche à l'épée. Libre, il se retourne contre l'armée.",scene:chains,
+  steps:n=>{const s0=[0,"L'armée tient un colosse à genoux : quatre chaînes vont de ses jambes à des piquets, tirées par des soldats."];
+   if(n===1) return [s0,[1.4,"Tu charges l'équipe du premier piquet."],[2,"Tu tranches la chaîne à l'épée."],[3,"Des renforts arrivent de l'est."],[4.6,"Deuxième piquet."],[7.8,"Troisième piquet."],[9.6,"Trois chaînes tombées : il arrache la dernière tout seul. Il est libre."],[11,"Il piétine les renforts."]];
+   if(n===2) return [s0,[1.4,"J1 et J2 chargent chacun un piquet."],[2.6,"Deux chaînes tranchées."],[3,"Des renforts arrivent de l'est."],[4.6,"J1 prend un troisième piquet."],[6.2,"Il arrache la dernière chaîne : il est libre."],[7.9,"Il piétine les renforts."]];
+   if(n===3) return [s0,[1.4,"Trois cavaliers chargent trois piquets à la fois."],[2.6,"Trois chaînes tombent presque ensemble."],[3,"Des renforts arrivent de l'est."],[3.6,"Il arrache la dernière : il est libre."],[5.3,"Il piétine les renforts."]];
+   return [s0,[1.4,"J1, J2 et J3 chargent trois piquets."],[2.6,"Trois chaînes tombent presque ensemble."],[3,"Des renforts arrivent de l'est."],[3.6,"Il arrache la dernière : il est libre."],[4,"J4 charge les renforts avant qu'ils arrivent."],[5,"Plus personne pour le retenir."]];},
+  roles:n=>n===1?[[0,"Charge les équipes et tranche les chaînes, une à une"]]:n===2?[[0,"Tranche deux chaînes"],[1,"Tranche une chaîne"]]:[[0,"Tranche une chaîne"],[1,"Tranche une chaîne"],[2,"Tranche une chaîne"],[3,"Charge les renforts à cheval"]].slice(0,n),
+  coop:n=>["Seul, une chaîne à la fois : les renforts ont le temps d'arriver.","À deux, deux chaînes tombent d'un coup : il est libre à mi-temps.","À trois, trois chaînes tombent presque ensemble : il arrache la dernière très vite.","À quatre, J4 disperse les renforts pendant que les autres tranchent."][n-1]},
+ {id:'lance',name:'Arracher la lance',tag:'flèche-corde + galop',what:"Une lance géante plantée dans son dos le rend fou. On l'accroche à la flèche-corde et on galope pour l'arracher : il se calme.",scene:spear,
+  steps:n=>{const o=SPEAR_OUT[n], a=[[0,"Une lance géante plantée dans son dos : fou de douleur, il frappe tout autour."]];
+   if(n===1) a.push([2.2,"Tu accroches la lance avec la flèche-corde."],[2.4,"Tu galopes pour l'arracher : seul, elle bouge à peine."],[6.2,"Deuxième essai, avec plus d'élan."],[o,"La lance sort : il se calme."]);
+   else { a.push([2.2,"J1 et J2 accrochent la lance."],[2.4,"Les deux chevaux tirent ensemble."],[o,"La lance sort : il se calme."]);
+     if(n>=3) a.push([1.2,"J3 sonne du cor : il se tourne vers lui et bouge moins."]);
+     if(n===4) a.push([1.6,"J4 grimpe et dégage la lance à l'épée."]); }
+   return a.sort((x,y)=>x[0]-y[0]);},
+  roles:n=>n===1?[[0,"Accroche la lance et tire, deux fois"]]:[[0,"Tire la lance"],[1,"Tire la lance"],[2,"Sonne du cor pour le tenir tourné"],[3,"Grimpe et dégage la lance"]].slice(0,n),
+  coop:n=>["Seul, un cheval ne suffit pas : il faut deux essais, et il frappe tout autour pendant ce temps.","À deux chevaux, la lance sort du premier coup.","À trois, le cor le tient tourné : la lance sort plus vite.","À quatre, J4 dégage la lance de l'intérieur : elle sort presque tout de suite."][n-1]},
+ {id:'cavalier',name:'Chasser son cavalier',tag:'escalade + duel',what:"Un général ennemi pilote le colosse depuis sa nuque. On grimpe, on le fait tomber, et le colosse est à nous : on le pilote par le dos.",scene:rider,
+  steps:n=>{const {grab,thr}=RIDER[n], a=[[0,"Un général ennemi est monté sur sa nuque : il pilote le colosse contre vous."],[grab,"Il pose un pied : J1 s'accroche et grimpe."],[grab+1.9,"Duel contre le général, sur la nuque."],[thr,"Le général tombe : le colosse est à vous."],[thr+.6,"J1 frappe le côté gauche de son dos : il part à droite."],[thr+3.2,"Il piétine les soldats ennemis."]];
+   if(n>=2) a.push([1.5,"J2 tire à l'arc sur le général : il baisse sa garde."]);
+   if(n>=3) a.push([.9,"J3 sonne du cor devant lui : il ralentit, on grimpe plus tôt."]);
+   if(n===4) a.push([grab+.3,"J4 grimpe par l'autre jambe : deux contre le général."]);
+   return a.sort((x,y)=>x[0]-y[0]);},
+  roles:n=>[[0,"Grimpe, chasse le général, puis pilote"],[1,"Tire à l'arc sur le général"],[2,"Sonne du cor pour le ralentir"],[3,"Grimpe aussi, par l'autre jambe"]].slice(0,n),
+  coop:n=>["Seul, il faut grimper pendant qu'il charge, puis gagner le duel sur la nuque.","À deux, les flèches de J2 gênent le général : le duel est plus court.","À trois, le cor le ralentit : on grimpe plus tôt.","À quatre, deux héros contre le général : il tombe très vite, et le colosse est à vous plus longtemps."][n-1]},
+ {id:'marais',name:'Le sortir du piège',tag:'flèche-corde + rythme',what:"Il s'enfonce dans un marais salant. Les cordes de plusieurs chevaux le tirent dans le même sens, au moment où il pousse.",scene:mire,
+  steps:n=>{const a=[[0,"Le colosse s'enfonce dans un marais salant."],[.9,n===1?"Tu plantes une flèche-corde dans ses cornes.":"Chacun plante sa flèche-corde dans ses cornes."],[2,n===1?"Il pousse : tu tires en même temps.":"Il pousse : tout le monde tire en même temps."],[2.8,"Entre deux poussées, tirer ne sert à rien."]];
+   if(n===1) a.push([10.7,"Seul, il n'est sorti qu'à moitié."]); else a.push([2+(5-n)*2+.7,"Il sort du marais : il est libre."]);
+   return a;},
+  roles:n=>[0,1,2,3].slice(0,n).map(i=>[i,"Tire sa corde quand il pousse"]),
+  coop:n=>["Seul, une corde ne le sort qu'à moitié : il faut tirer pile quand il pousse.","À deux, il sort en quatre poussées.","À trois, en trois poussées.","À quatre, en deux poussées : il est libre très vite."][n-1]},
+ {id:'escorte',name:"L'escorter jusqu'à l'eau",tag:'cor + défense',what:"Un colosse affaibli marche vers l'eau du qanat. On le guide au cor et on le défend contre les soldats et une baliste ennemie.",scene:escort,
+  steps:n=>{const a=[[0,"Un colosse affaibli porte une citerne vide vers l'eau du qanat."],[.6,"J1 le guide au cor."],[2.5,"Une baliste ennemie le touche."],[5.6,"Des soldats l'attaquent par le sud."],[7.6,"D'autres par le nord."],[10.8,n===1?"Il arrive à l'eau, très affaibli.":"Il arrive à l'eau et remplit sa citerne : sauvé."]];
+   if(n>=2) a.push([3.1,"J2 tue les servants de la baliste : elle se tait."]);
+   if(n===3) a.push([5.7,"J3 repousse les soldats du sud, puis ceux du nord."]);
+   if(n===4) a.push([5.7,"J3 repousse ceux du sud, J4 ceux du nord."]);
+   return a.sort((x,y)=>x[0]-y[0]);},
+  roles:n=>[[0,"Le guide au cor"],[1,"Fait taire la baliste"],[2,n===4?"Repousse les soldats du sud":"Repousse les soldats"],[3,"Repousse les soldats du nord"]].slice(0,n),
+  coop:n=>["Seul, on ne peut pas guider et défendre à la fois : il arrive à l'eau, mais de justesse.","À deux, la baliste se tait tôt : il arrive en bien meilleur état.","À trois, J3 repousse les soldats : presque aucun coup ne le touche.","À quatre, chaque attaque a son défenseur."][n-1]},
+ {id:'soigner',name:'Le soigner',tag:'porter + escalade',what:"Sa citerne est vide. On porte des jarres depuis le puits, on grimpe et on la remplit. À plusieurs, on fait la chaîne.",scene:heal,
+  steps:n=>{const pl2=healPlan(n);
+   if(n===1) return [[0,"Un colosse à bout de forces : sa citerne est vide."],[.2,"Tu prends une jarre au puits."],[1.6,"Tu grimpes jusqu'à la citerne."],[2.4,"Tu verses."],[3.2,"Retour au puits pour la jarre suivante."],[7,"Deuxième jarre."],[10,"Seul, la citerne n'est qu'à moitié pleine."]];
+   return [[0,"Un colosse à bout de forces : sa citerne est vide."],[1,"J2 grimpe sur son dos, près de la citerne."],[1.8,n===2?"J1 porte les jarres du puits à ses pieds.":n===3?"J1 et J3 portent les jarres à tour de rôle.":"Trois porteurs se relaient."],[3,"J2 monte chaque jarre et la verse."],[pl2.full,"La citerne est pleine : il se relève."]];},
+  roles:n=>n===1?[[0,"Porte, grimpe et verse"]]:[[0,"Porte les jarres"],[1,"Sur son dos, monte les jarres et verse"],[2,"Porte les jarres"],[3,"Porte les jarres"]].slice(0,n),
+  coop:n=>["Seul, il faut porter, grimper et verser : deux jarres en 12 s.","À deux, on fait la chaîne : l'un porte, l'autre verse.","À trois, deux porteurs se relaient.","À quatre, trois porteurs : la citerne se remplit en un rien de temps."][n-1]},
+ {id:'sel',name:'Le réveiller',tag:'escalade + épée précise',what:"Il est figé sous une croûte de sel. On la brise aux bons endroits, sans frapper à côté, et il se réveille.",scene:salt,
+  steps:n=>{const w=SALTPLAN[n].wake;
+   if(n===1) return [[0,"Un colosse figé sous une croûte de sel."],[.6,"Tu brises le sel de ses jambes, aux bons endroits."],[3.9,"Puis tu grimpes briser celui du dos."],[5.5,"À côté du sel, le coup le blesse : il faut viser les plaques."],[9.1,"Dernière plaque, sur la nuque."],[w,"Il se réveille et se secoue."]];
+   if(n===2) return [[0,"Un colosse figé sous une croûte de sel."],[.5,"J2 brise le sel des jambes."],[1.7,"J1 grimpe et brise celui du dos."],[w,"Il se réveille et se secoue."]];
+   if(n===3) return [[0,"Un colosse figé sous une croûte de sel."],[.5,"J2 brise le sel des jambes."],[1.7,"J1 et J3 se partagent le dos."],[w,"Il se réveille et se secoue."]];
+   return [[0,"Un colosse figé sous une croûte de sel."],[.5,"J2 et J4 libèrent ses deux jambes."],[1.5,"J1 et J3 se partagent le dos."],[w,"Il se réveille et se secoue."]];},
+  roles:n=>n===1?[[0,"Brise toutes les plaques, jambes puis dos"]]:n===2?[[0,"Brise le sel du dos"],[1,"Brise le sel des jambes"]]:n===3?[[0,"Brise le dos, côté gauche"],[1,"Brise le sel des jambes"],[2,"Brise le dos et la nuque"]]:[[0,"Brise le dos"],[1,"Brise une jambe"],[2,"Brise le dos et la nuque"],[3,"Brise l'autre jambe"]],
+  coop:n=>["Seul, six plaques à briser une à une, sans frapper à côté.","À deux, l'un libère les jambes pendant que l'autre grimpe.","À trois, deux héros se partagent le dos.","À quatre, chaque partie du corps a son héros : il se réveille presque tout de suite."][n-1]},
+];
+
 /* ---------- Textes ---------- */
 const IDEES=[
  {id:'clouer',name:'Le clouer au sol',tag:'corde + piquets',what:"Chaque cavalier plante sa flèche-corde dans une jambe, puis attache l'autre bout à un piquet du sol. Plus il y a de cordes, plus le colosse reste immobile.",scene:pin,
@@ -726,13 +1010,13 @@ const IDEES=[
   roles:n=>n===1?[[0,"Tranche, puis grimpe"]]:n===2?[[0,"Tranche les sangles"],[1,"Grimpe et frappe"]]:n===3?[[0,"Tranche la patte droite"],[1,"Grimpe et frappe"],[2,"Tranche la patte gauche"]]:[[0,"Tranche la patte droite"],[1,"Grimpe et frappe"],[2,"Tranche la patte gauche"],[3,"Grimpe et frappe"]],
   coop:n=>["Seul, il faut trancher puis grimper dans le même temps à genoux : peu de temps pour frapper.","À deux, le grimpeur attend en position : il monte dès qu'il s'agenouille.","À trois, deux pattes tranchées : il reste à genoux bien plus longtemps.","À quatre, deux grimpeurs profitent de ce long moment à genoux."][n-1]},
 ];
-const MECH=JEU.map(m=>Object.assign(m,{group:'jeu'})).concat(IDEES.map(m=>Object.assign(m,{group:'idee'})));
+const MECH=JEU.map(m=>Object.assign(m,{group:'jeu'})).concat(IDEES.map(m=>Object.assign(m,{group:'idee'})),SAUVER.map(m=>Object.assign(m,{group:'sauver'})));
 
 /* ---------- Dessin ---------- */
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
 let P={};
 function readPalette(){const cs=getComputedStyle(document.documentElement);const g=n=>cs.getPropertyValue('--'+n).trim();
-  P={ground:g('ground'),grid:g('grid'),stone:g('stone'),stoneDk:g('stone-dk'),slab:g('slab'),plate:g('plate'),shadow:g('shadow'),accent:g('accent'),blood:g('blood'),rope:g('rope'),gold:g('gold'),naphte:g('naphte'),ink:g('ink'),muted:g('muted'),bg:g('bg'),p:[g('p1'),g('p2'),g('p3'),g('p4')],font:g('body'),mono:g('mono')};}
+  P={ground:g('ground'),grid:g('grid'),stone:g('stone'),stoneDk:g('stone-dk'),slab:g('slab'),plate:g('plate'),shadow:g('shadow'),accent:g('accent'),blood:g('blood'),rope:g('rope'),gold:g('gold'),naphte:g('naphte'),ink:g('ink'),muted:g('muted'),bg:g('bg'),p:[g('p1'),g('p2'),g('p3'),g('p4')],font:g('body'),mono:g('mono'),water:g('water'),salt:g('salt'),enemy:g('enemy'),marsh:g('marsh')};}
 function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 function ground(){ctx.fillStyle=P.ground;ctx.fillRect(0,0,W,H);ctx.strokeStyle=P.grid;ctx.lineWidth=1;ctx.beginPath();for(let x=40;x<W;x+=40){ctx.moveTo(x,0);ctx.lineTo(x,H);}for(let y=40;y<H;y+=40){ctx.moveTo(0,y);ctx.lineTo(W,y);}ctx.stroke();}
 function drawProp(p,t){
@@ -752,6 +1036,13 @@ function drawProp(p,t){
     if(!p.broken){ctx.fillStyle=P.shadow;ctx.beginPath();ctx.ellipse(p.x+12,p.y+14,18,14,0,0,2*PI);ctx.fill();ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;rr(p.x-13,p.y-13,26,26,5);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(p.x-6,p.y-4);ctx.lineTo(p.x+5,p.y+6);ctx.stroke();}
     else{ctx.globalAlpha=.75;ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(p.x,p.y,24,11,.4,0,2*PI);ctx.fill();ctx.stroke();ctx.globalAlpha=1;}
   }
+  else if(p.k==='soldier'){ctx.fillStyle=P.enemy;ctx.beginPath();ctx.arc(p.x,p.y,4.5,0,2*PI);ctx.fill();}
+  else if(p.k==='general'){ctx.globalAlpha=p.down?.55:1;ctx.fillStyle=P.enemy;ctx.beginPath();ctx.arc(p.x,p.y,8,0,2*PI);ctx.fill();ctx.strokeStyle=P.accent;ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,11.5,0,2*PI);ctx.stroke();}
+  else if(p.k==='water'){ctx.fillStyle=P.water;ctx.globalAlpha=.85;ctx.beginPath();ctx.ellipse(p.x,p.y,p.r,p.r*.8,0,0,2*PI);ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;ctx.stroke();}
+  else if(p.k==='well'){ctx.strokeStyle=P.stoneDk;ctx.lineWidth=7;ctx.beginPath();ctx.arc(p.x,p.y,22,0,2*PI);ctx.stroke();ctx.fillStyle=P.water;ctx.beginPath();ctx.arc(p.x,p.y,15,0,2*PI);ctx.fill();}
+  else if(p.k==='marsh'){ctx.fillStyle=P.marsh;ctx.globalAlpha=.75;ctx.beginPath();ctx.ellipse(p.x,p.y,p.rx,p.ry,0,0,2*PI);ctx.fill();ctx.globalAlpha=.35;ctx.fillStyle=P.stoneDk;[[-80,-40,26],[60,50,20],[90,-60,16],[-110,40,18]].forEach(([dx,dy,r])=>{ctx.beginPath();ctx.ellipse(p.x+dx,p.y+dy,r,r*.6,0,0,2*PI);ctx.fill();});}
+  else if(p.k==='jar'){ctx.fillStyle=P.water;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=1.5;rr(p.x-6,p.y-8,12,16,4);ctx.fill();ctx.stroke();}
+  else if(p.k==='spearFly'){ctx.globalAlpha=p.al;ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.strokeStyle=P.ink;ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-55,0);ctx.lineTo(55,0);ctx.stroke();}
   else if(p.k==='plateFly'){ctx.globalAlpha=p.al;ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillStyle=P.plate;ctx.strokeStyle=P.gold;ctx.lineWidth=2;rr(-36,-10,72,20,3);ctx.fill();ctx.stroke();}
   ctx.restore();
 }
@@ -760,7 +1051,7 @@ function drawColossus(c,t){
   ctx.save();ctx.translate(c.x+jit,c.y+jit*.5);ctx.rotate(c.a);
   ctx.fillStyle=P.shadow;ctx.beginPath();ctx.ellipse(14,18,112*k,72*k,0,0,2*PI);ctx.fill();
   const lg=26*(1-.35*c.kneel);
-  [[58,54],[58,-54],[-58,54],[-58,-54]].forEach(([x,y])=>{ctx.fillStyle=P.stoneDk;rr(x*k-lg/2,y*k-lg/2,lg,lg,4);ctx.fill();});
+  if(!(c.sunk>.2)) [[58,54],[58,-54],[-58,54],[-58,-54]].forEach(([x,y])=>{ctx.fillStyle=P.stoneDk;rr(x*k-lg/2,y*k-lg/2,lg,lg,4);ctx.fill();});
   c.straps.forEach(s=>{const x=s.lx*k,y=s.ly*k;ctx.strokeStyle=P.rope;ctx.lineWidth=3;ctx.lineCap='round';if(!s.cut){ctx.beginPath();ctx.moveTo(x-12,y-6);ctx.lineTo(x+12,y-6);ctx.moveTo(x-12,y+6);ctx.lineTo(x+12,y+6);ctx.stroke();}else{ctx.globalAlpha=.6;ctx.beginPath();ctx.moveTo(x-14,y-6);ctx.lineTo(x-4,y-9);ctx.moveTo(x+4,y+9);ctx.lineTo(x+14,y+6);ctx.stroke();ctx.globalAlpha=1;}});
   ctx.fillStyle=P.stone;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;rr(-85*k,-48*k,170*k,96*k,10);ctx.fill();ctx.stroke();
   ctx.fillStyle=P.slab;[-45,0,45].forEach(x=>{rr((x-14)*k,-28*k,28*k,56*k,4);ctx.fill();});
@@ -770,6 +1061,11 @@ function drawColossus(c,t){
   if(c.shield){ctx.strokeStyle=P.accent;ctx.lineWidth=11;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(100*k,-64*k);ctx.quadraticCurveTo(150*k,0,100*k,64*k);ctx.stroke();}
   if(c.plate){ctx.fillStyle=P.plate;ctx.strokeStyle=P.gold;ctx.lineWidth=2;rr(-36*k,-62*k,72*k,20*k,3);ctx.fill();ctx.stroke();}
   if(c.weak){ctx.globalAlpha=.55+.45*Math.sin(t*6);ctx.fillStyle=P.blood;ctx.beginPath();ctx.ellipse(0,-44*k,26*k,9*k,0,0,2*PI);ctx.fill();ctx.globalAlpha=1;}
+  if(c.cistern!==undefined){ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=3;ctx.beginPath();ctx.arc(-10*k,0,30*k,0,2*PI);ctx.fill();ctx.stroke();if(c.cistern>0){ctx.fillStyle=P.water;ctx.beginPath();ctx.arc(-10*k,0,26*k*Math.sqrt(clamp(c.cistern)),0,2*PI);ctx.fill();}}
+  if(c.spear){ctx.globalAlpha=.6;ctx.fillStyle=P.blood;ctx.beginPath();ctx.arc(-22*k,-12*k,11,0,2*PI);ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle=P.ink;ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-22*k,-12*k);ctx.lineTo(-70*k,-92*k);ctx.stroke();}
+  if(c.frozen>0){ctx.globalAlpha=.45*c.frozen;ctx.fillStyle=P.salt;rr(-85*k,-48*k,170*k,96*k,10);ctx.fill();ctx.globalAlpha=1;}
+  if(c.salt) c.salt.forEach(s=>{ if(!s.broken){ctx.fillStyle=P.salt;ctx.strokeStyle=P.muted;ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(s.lx*k,s.ly*k,17,13,0,0,2*PI);ctx.fill();ctx.stroke();} });
+  if(c.sunk>0){ctx.globalAlpha=.6*c.sunk;ctx.fillStyle=P.marsh;ctx.beginPath();ctx.ellipse(0,18*k,104*k,52*k,0,0,2*PI);ctx.fill();ctx.globalAlpha=1;}
   ctx.restore();
   if(c.stun){const h=cpt(c,99,0);for(let s=0;s<3;s++){const a=t*4+s*2*PI/3;const x=h.x+Math.cos(a)*22,y=h.y-24+Math.sin(a)*7;ctx.fillStyle=P.gold;ctx.beginPath();ctx.arc(x,y,3.2,0,2*PI);ctx.fill();}}
 }
@@ -805,7 +1101,7 @@ function drawRope(r,t){
   const dx=r.b.x-r.a.x,dy=r.b.y-r.a.y,len=Math.hypot(dx,dy)||1,nx=-dy/len,ny=dx/len;
   const sag=(1-r.tension)*30+(r.sway?Math.sin(t*3)*16:0);
   const mx=(r.a.x+r.b.x)/2+nx*sag,my=(r.a.y+r.b.y)/2+ny*sag;
-  const hot=r.tension>.85;ctx.strokeStyle=hot?P.accent:P.rope;ctx.lineWidth=hot?3.4:2.4;
+  const hot=r.tension>.85&&!r.chain;ctx.strokeStyle=r.chain?P.stoneDk:hot?P.accent:P.rope;ctx.lineWidth=r.chain?3.6:hot?3.4:2.4;if(r.chain)ctx.setLineDash([7,4]);
   ctx.beginPath();ctx.moveTo(r.a.x,r.a.y);ctx.quadraticCurveTo(mx,my,r.b.x,r.b.y);ctx.stroke();ctx.restore();
 }
 function drawPlayer(p){
@@ -821,6 +1117,8 @@ function drawFx(f){
   else if(f.k==='hit'){const big=f.big?1.6:1;ctx.globalAlpha=1-f.p;ctx.strokeStyle=P.blood;ctx.lineWidth=2.5;ctx.lineCap='round';for(let k=0;k<7;k++){const a=k/7*2*PI+.3,r1=4*big,r2=(8+12*f.p)*big;ctx.beginPath();ctx.moveTo(f.x+Math.cos(a)*r1,f.y+Math.sin(a)*r1);ctx.lineTo(f.x+Math.cos(a)*r2,f.y+Math.sin(a)*r2);ctx.stroke();}}
   else if(f.k==='arrow'){const x=L(f.x1,f.x2,f.p),y=L(f.y1,f.y2,f.p),a=Math.atan2(f.y2-f.y1,f.x2-f.x1),len=f.big?30:16;ctx.translate(x,y);ctx.rotate(a);ctx.strokeStyle=f.fire?P.accent:P.ink;ctx.lineWidth=f.big?4:2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-len,0);ctx.lineTo(0,0);ctx.stroke();ctx.fillStyle=f.fire?P.gold:P.ink;ctx.beginPath();ctx.moveTo(3,0);ctx.lineTo(-5,-4);ctx.lineTo(-5,4);ctx.closePath();ctx.fill();}
   else if(f.k==='snap'){const big=f.big?2:1;ctx.globalAlpha=1-f.p;ctx.strokeStyle=P.accent;ctx.lineWidth=3;ctx.lineCap='round';for(let k=0;k<9;k++){const a=k/9*2*PI,r1=6*big,r2=(10+22*f.p)*big;ctx.beginPath();ctx.moveTo(f.x+Math.cos(a)*r1,f.y+Math.sin(a)*r1);ctx.lineTo(f.x+Math.cos(a)*r2,f.y+Math.sin(a)*r2);ctx.stroke();}}
+  else if(f.k==='chip'){const big=f.big?1.7:1;ctx.globalAlpha=1-f.p;ctx.strokeStyle=P.muted;ctx.lineWidth=2.5;ctx.lineCap='round';for(let k=0;k<6;k++){const a=k/6*2*PI+.5,r1=3*big,r2=(7+11*f.p)*big;ctx.beginPath();ctx.moveTo(f.x+Math.cos(a)*r1,f.y+Math.sin(a)*r1);ctx.lineTo(f.x+Math.cos(a)*r2,f.y+Math.sin(a)*r2);ctx.stroke();}}
+  else if(f.k==='splash'){ctx.globalAlpha=1-f.p;ctx.strokeStyle=P.water;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(f.x,f.y,6+24*f.p,0,2*PI);ctx.stroke();}
   else if(f.k==='dust'){ctx.globalAlpha=(1-f.p)*.5;ctx.fillStyle=P.muted;ctx.beginPath();ctx.arc(f.x,f.y,4+10*f.p,0,2*PI);ctx.fill();}
   else if(f.k==='text'){ctx.fillStyle=P.ink;ctx.font='600 14px '+P.font;ctx.textAlign='center';ctx.fillText(f.s,f.x,f.y);}
   ctx.restore();
@@ -839,7 +1137,7 @@ const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').m
 if(reduce){playing=false;t=6;}
 const $=id=>document.getElementById(id);
 function save(){try{localStorage.setItem('gestes-colosses-2',JSON.stringify({m:mech,n}));}catch(e){}}
-function buildTabs(){['jeu','idee'].forEach(g=>{$('tabs-'+g).innerHTML='';});MECH.forEach((m,i)=>{const b=document.createElement('button');b.type='button';b.className='tab';b.id='tab-'+m.id;b.setAttribute('aria-pressed',String(i===mech));b.innerHTML=`${m.name}<small>${m.tag}</small>`;b.onclick=()=>{mech=i;t=0;save();refresh();};$('tabs-'+m.group).appendChild(b);});}
+function buildTabs(){['jeu','idee','sauver'].forEach(g=>{$('tabs-'+g).innerHTML='';});MECH.forEach((m,i)=>{const b=document.createElement('button');b.type='button';b.className='tab';b.id='tab-'+m.id;b.setAttribute('aria-pressed',String(i===mech));b.innerHTML=`${m.name}<small>${m.tag}</small>`;b.onclick=()=>{mech=i;t=0;save();refresh();};$('tabs-'+m.group).appendChild(b);});}
 function buildSeg(){$('seg').innerHTML='';[1,2,3,4].forEach(k=>{const b=document.createElement('button');b.type='button';b.id='n-'+k;b.textContent=k===1?'1 joueur':k+' joueurs';b.setAttribute('aria-pressed',String(k===n));b.onclick=()=>{n=k;t=0;save();refresh();};$('seg').appendChild(b);});}
 function fmt(x){return x.toFixed(1).replace('.',',');}
 function refresh(){
@@ -848,16 +1146,16 @@ function refresh(){
   const st=m.steps(n);$('steps').innerHTML=st.map(([tt,s],k)=>`<li id="st-${k}"><span class="mono">${fmt(tt)} s</span><span>${s}</span></li>`).join('');
   $('roles').innerHTML=m.roles(n).map(([i,s])=>`<li><span class="dot" style="background:var(--p${i+1})">${i+1}</span><span>${s}</span></li>`).join('');
   $('coop').textContent=m.coop(n);
-  $('legend').innerHTML=`<span><i class="sw" style="background:var(--rope)"></i>corde</span><span><i class="sw" style="background:var(--accent)"></i>corde tendue au maximum</span><span><i class="sw" style="background:var(--blood)"></i>coup porté</span><span>cercle pointillé : sur le colosse</span>`;
+  $('legend').innerHTML=`<span><i class="sw" style="background:var(--rope)"></i>corde</span><span><i class="sw" style="background:var(--accent)"></i>corde tendue au maximum</span><span><i class="sw" style="background:var(--blood)"></i>coup porté</span><span><i class="sw" style="background:var(--enemy)"></i>soldats ennemis</span><span>cercle pointillé : sur le colosse</span>`;
   lastStep=-1;
 }
 function render(){
   readPalette();
   const m=MECH[mech],st=m.scene(t,n);
   ctx.setTransform(2,0,0,2,0,0);ground();
-  st.props.filter(p=>p.k!=='plateFly').forEach(p=>drawProp(p,t));
+  st.props.filter(p=>p.k!=='plateFly'&&!p.over).forEach(p=>drawProp(p,t));
   drawBody(st.c,t);
-  st.props.filter(p=>p.k==='plateFly').forEach(p=>drawProp(p,t));
+  st.props.filter(p=>p.k==='plateFly'||p.over).forEach(p=>drawProp(p,t));
   st.ropes.forEach(r=>drawRope(r,t));
   st.players.forEach(drawPlayer);
   st.fx.forEach(drawFx);
