@@ -937,7 +937,7 @@ const SAUVER=[
    return a.sort((x,y)=>x[0]-y[0]);},
   roles:n=>[[0,"Le guide en marchant devant"],[1,"Repousse la première vague"],[2,n===4?"Repousse les soldats du sud":"Repousse les soldats"],[3,"Repousse les soldats du nord"]].slice(0,n),
   coop:n=>["Seul, on ne peut pas guider et défendre à la fois : il arrive à l'eau, mais de justesse.","À deux, la première vague tombe tout de suite : il arrive en bien meilleur état.","À trois, J3 repousse les soldats : presque aucun coup ne le touche.","À quatre, chaque attaque a son défenseur."][n-1]},
- {id:'soigner',name:'Le soigner (mis de côté)',tag:'mis de côté pour l\'instant',what:"Mis de côté le 7 novembre : le concept de la jarre ne te plaisait pas. Pour mémoire : on portait des jarres depuis le puits pour remplir sa citerne.",scene:heal,
+ {id:'soigner',name:'Le soigner',tag:'jarres + citerne · prototype',what:"Prototype demandé le 7 novembre au soir, pour commencer : on porte des jarres du puits et on les verse dans sa citerne. Le concept de la jarre ne te plaisait pas : c'est un point de départ, à revoir après l'essai.",scene:heal,
   steps:n=>{const pl2=healPlan(n);
    if(n===1) return [[0,"Un colosse à bout de forces : sa citerne est vide."],[.2,"Tu prends une jarre au puits."],[1.6,"Tu grimpes jusqu'à la citerne."],[2.4,"Tu verses."],[3.2,"Retour au puits pour la jarre suivante."],[7,"Deuxième jarre."],[10,"Seul, la citerne n'est qu'à moitié pleine."]];
    return [[0,"Un colosse à bout de forces : sa citerne est vide."],[1,"J2 grimpe sur son dos, près de la citerne."],[1.8,n===2?"J1 porte les jarres du puits à ses pieds.":n===3?"J1 et J3 portent les jarres à tour de rôle.":"Trois porteurs se relaient."],[3,"J2 monte chaque jarre et la verse."],[pl2.full,"La citerne est pleine : il se relève."]];},
@@ -1151,6 +1151,9 @@ function hud(life,meter){
 /* ---------- État et interface ---------- */
 let mech=0,n=2,t=0,playing=true,last=null,lastStep=-1;
 try{const s=JSON.parse(localStorage.getItem('gestes-colosses-2')||'{}');if(Number.isInteger(s.m)&&s.m>=0&&s.m<MECH.length)mech=s.m;if([1,2,3,4].includes(s.n))n=s.n;}catch(e){}
+/* Lien direct depuis le menu « Scénarios » du jeu : ?geste=<id>&j=<1..4> (ou #geste=<id>&j=<n>). */
+try{const q=new URLSearchParams((location.search||'').slice(1)+'&'+(location.hash||'').slice(1));const g=q.get('geste'),j=parseInt(q.get('j'),10);
+  const gi=g?MECH.findIndex(m=>m.id===g):-1; if(gi>=0){mech=gi;globalThis.__deep=true;} if([1,2,3,4].includes(j))n=j;}catch(e){}
 const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 if(reduce){playing=false;t=6;}
 const $=id=>document.getElementById(id);
@@ -1189,5 +1192,6 @@ $('restart').onclick=()=>{t=0;lastStep=-1;playing=true;$('play').textContent='Pa
 $('scrub').oninput=e=>{t=parseFloat(e.target.value)||0;lastStep=-1;};
 $('play').textContent=playing?'Pause':'Lecture';
 refresh();requestAnimationFrame(frame);
+if(globalThis.__deep){try{const e=$('tab-'+MECH[mech].id);if(e)e.scrollIntoView({block:'center'});}catch(e){}}
 })();
 </script>
