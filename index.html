@@ -80,13 +80,17 @@ ul.roles li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:sta
 <div class="wrap">
   <header>
     <h1>Gestes contre les colosses</h1>
-    <p class="lede">Huit idées de mécaniques qui prolongent la corde, vues de dessus comme dans le jeu. Choisis une mécanique et un nombre de joueurs : l'animation montre ce que chacun fait et ce que la coopération change.</p>
+    <p class="lede">Les gestes déjà dans le jeu, puis huit idées de nouvelles mécaniques, vus de dessus. Choisis un geste et un nombre de joueurs : l'animation montre ce que chacun fait et ce que la coopération change.</p>
   </header>
 
   <section class="controls" aria-label="Choix">
     <div class="group">
-      <span class="label" id="lbl-mech">Mécanique</span>
-      <div class="tabs" id="tabs" role="group" aria-labelledby="lbl-mech"></div>
+      <span class="label" id="lbl-jeu">Déjà dans le jeu</span>
+      <div class="tabs" id="tabs-jeu" role="group" aria-labelledby="lbl-jeu"></div>
+    </div>
+    <div class="group">
+      <span class="label" id="lbl-idee">Idées, rien n'est codé</span>
+      <div class="tabs" id="tabs-idee" role="group" aria-labelledby="lbl-idee"></div>
     </div>
     <div class="group">
       <span class="label" id="lbl-n">Joueurs</span>
@@ -435,8 +439,220 @@ function knees(t,n){
   c.life=1-dmg; return st;
 }
 
+/* ---------- Déjà dans le jeu : outils ---------- */
+const O={x:400,y:262};
+function pl(t,pts){ if(t<=pts[0][0]) return pts[0][1]; for(let i=1;i<pts.length;i++){ if(t<=pts[i][0]){const p=pts[i-1],q=pts[i];return L(p[1],q[1],(t-p[0])/Math.max(1e-6,q[0]-p[0]));} } return pts[pts.length-1][1]; }
+function polar(th,R){return {x:O.x+Math.cos(th)*R,y:O.y+Math.sin(th)*R};}
+function angDiff(a,b){return ((a-b)%(2*PI)+3*PI)%(2*PI)-PI;}
+function spline(t,pts){
+  const m=pts.length; if(t<=pts[0][0]) return {x:pts[0][1],y:pts[0][2]}; if(t>=pts[m-1][0]) return {x:pts[m-1][1],y:pts[m-1][2]};
+  let i=0; while(i<m-2&&t>pts[i+1][0]) i++;
+  const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(m-1,i+2)];
+  const u=(t-p1[0])/(p2[0]-p1[0]),u2=u*u,u3=u2*u;
+  const cr=(a,b,c,d)=>.5*((2*b)+(-a+c)*u+(2*a-5*b+4*c-d)*u2+(-a+3*b-3*c+d)*u3);
+  return {x:cr(p0[1],p1[1],p2[1],p3[1]),y:cr(p0[2],p1[2],p2[2],p3[2])};
+}
+
+/* ---------- A. Grimper et frapper ---------- */
+function climb(t,n){
+  const st=S(), x=pl(t,[[0,250],[3.2,420],[6,460],[8.2,460],[12,520]]);
+  const c=col(x,262,0); st.c=c;
+  if(t>7&&t<8.2) c.shake=1;
+  let dmg=0;
+  const climber=(i,from,side,a0,lp,backA,backB,napeA)=>{
+    let p;
+    if(t<a0){const g=cpt(c,-64,side*96); p=path(t,[[0,from.x,from.y],[a0-.1,g.x,g.y]]);}
+    else {const q=path(t,lp); p=cpt(c,q.x,q.y);}
+    st.players.push({x:p.x,y:p.y,i,on:t>=a0+.3});
+    hits(st,cpt(c,-14,side*8),t,backA,backB,2.6); dmg+=act(t,backA,backB)*.035;
+    hits(st,cpt(c,100,0),t,napeA,11.8,3); dmg+=act(t,napeA,11.8)*.09;
+  };
+  climber(0,{x:110,y:470},1,2,[[2,-64,96],[2.6,-58,58],[3.4,-14,16],[8.4,-14,16],[9.2,90,8]],3.6,6,9.3);
+  if(n===4) climber(3,{x:110,y:50},-1,2.4,[[2.4,-64,-96],[3,-58,-58],[3.8,-24,-18],[8.4,-24,-18],[9.2,86,-12]],4,6,9.3);
+  if(n>=2){
+    const f=cpt(c,58,-54); let p;
+    if(t<1.6) p=path(t,[[0,130,40],[1.6,f.x+10,f.y-40]]);
+    else if(t<5.8) p={x:f.x+10,y:f.y-40};
+    else if(t<8.2) p={x:f.x+10,y:f.y-40-90*ease(seg(t,5.8,6.6))};
+    else p={x:f.x+10,y:f.y-130+90*ease(seg(t,8.2,8.9))};
+    st.players.push({x:p.x,y:p.y,i:1});
+    hits(st,f,t,1.8,5.8,2.4); dmg+=act(t,1.8,5.8)*.025;
+    if(t>6.3&&t<6.9) st.fx.push({k:'snap',x:f.x,y:f.y-30,p:seg(t,6.3,6.9)});
+    hits(st,f,t,9,11.8,2.4); dmg+=act(t,9,11.8)*.025;
+  }
+  if(n>=3){const p=path(t,[[0,780,500],[1,700,470]]); st.players.push({x:p.x,y:p.y,i:2}); arrowsLoop(st,p,cpt(c,30,20),t,1.2,11.6,1.1); dmg+=act(t,1.2,11.6)*.018;}
+  c.life=1-dmg; return st;
+}
+
+/* ---------- B. Ligoter le Haut-Pas ---------- */
+const HPF=[[110,-95],[110,95],[-110,95],[-110,-95]]; // l'anneau des jambes : avant gauche, avant droite, arrière droite, arrière gauche
+function hpFoot(c,i){const k=1-.55*(c.tight||0),f=HPF[i],s=(c.walk||0)*7*Math.sin((c.wt||0)*10+i*PI);return cpt(c,f[0]*k+s,f[1]*k);}
+function hpOut(c,i){const f=hpFoot(c,i),dx=f.x-c.x,dy=f.y-c.y,d=Math.hypot(dx,dy)||1;return {x:f.x+dx/d*13,y:f.y+dy/d*13};}
+function hpBody(c){const fl=c.fallen||0,fd=c.fallDir||0;return {x:c.x+Math.cos(fd)*48*fl,y:c.y+Math.sin(fd)*48*fl};}
+const HP={
+ 1:{riders:[{i:0,pull:1,th:[[0,-1.3],[1,-1],[1.4,-1],[6.2,5.78],[7.8,5.92]],R:[[0,300],[1,190],[6.2,190],[7.8,330]],go:8.5}],
+    arrows:[[0,0,1]],segs:[[0,1,2.61],[1,2,3.83],[2,3,4.84],[3,0,6.05]],
+    holds:[{i:0,legs:[[1.35,0],[2.61,1],[3.83,2],[4.84,3],[6.05,0]],to:7.9}],walk:[3.83,6.05],tight:[6.4,7.9],fall:[7.9,8.5]},
+ 2:{riders:[{i:0,pull:1,th:[[0,-1.3],[1,-1],[1.4,-1],[3.83,2.43],[4,2.55],[5.3,2.75]],R:[[0,300],[1,190],[3.95,190],[5.3,330]],go:5.9},
+            {i:1,pull:1,th:[[0,4.4],[1.2,4.1],[1.6,4.1],[2.78,2.43],[3.95,2.3],[5.3,2.05]],R:[[0,300],[1.2,190],[3.95,190],[5.3,330]],go:6}],
+    arrows:[[0,0,1],[1,3,1.2]],segs:[[3,0,1.55],[0,1,2.61],[3,2,2.78],[1,2,3.83]],
+    holds:[{i:0,legs:[[1.35,0],[2.61,1],[3.83,2]],to:5.4},{i:1,legs:[[1.55,3],[2.78,2]],to:5.4}],walk:[2.61,3.83],tight:[3.95,5.3],fall:[5.3,5.9]},
+ 4:{riders:[{i:0,pull:1,th:[[0,-1.3],[.8,-1],[3,-1],[4.6,-1.15]],R:[[0,300],[.8,190],[3,190],[4.6,330]],go:5.4},
+            {i:1,th:[[0,1.2],[1,1]],R:[[0,300],[1,190]],go:4.4},
+            {i:2,pull:1,th:[[0,2.4],[1.2,2.2],[3,2.2],[4.6,2.35]],R:[[0,300],[1.2,190],[3,190],[4.6,330]],go:5.4},
+            {i:3,th:[[0,4.4],[1.4,4.1],[1.8,4.1],[2.9,5.68]],R:[[0,300],[1.4,190]],go:4.4}],
+    arrows:[[0,0,.8],[1,1,1],[2,2,1.2],[3,3,1.4]],segs:[[0,1,1.35],[1,2,1.55],[2,3,1.75],[3,0,2.82]],
+    holds:[{i:0,legs:[[1.15,0]],to:4.7},{i:1,legs:[[1.35,1]],to:3},{i:2,legs:[[1.55,2]],to:4.7},{i:3,legs:[[1.75,3],[2.82,0]],to:3}],
+    walk:[1.55,2.82],tight:[3.1,4.6],fall:[4.6,5.2]}
+};
+HP[3]=Object.assign({},HP[2],{riders:HP[2].riders.concat([{i:2,th:[[0,PI/2]],R:[[0,232]],go:5.2}])});
+function hautpas(t,n){
+  const d=HP[n], st=S(), c=col(O.x,O.y,0); c.kind='hautpas'; c.wt=t; st.c=c;
+  const r0=d.riders[0], th0=pl(d.walk[1],r0.th);
+  c.x+=Math.cos(th0)*20*seg(t,d.walk[0],d.walk[1]); c.y+=Math.sin(th0)*20*seg(t,d.walk[0],d.walk[1]);
+  c.walk=t>d.walk[0]&&t<d.walk[1]?1:0;
+  c.tight=ease(seg(t,d.tight[0],d.tight[1]));
+  c.fallen=ease(seg(t,d.fall[0],d.fall[1]));
+  let sx=0,sy=0; d.riders.forEach(r=>{ if(r.pull){const th=pl(d.tight[1],r.th); sx+=Math.cos(th); sy+=Math.sin(th);} });
+  c.fallDir=Math.hypot(sx,sy)>.1?Math.atan2(sy,sx)+PI:PI/2;
+  c.stun=c.fallen>.95;
+  if(t>d.fall[0]&&t<d.fall[0]+.6){const b=hpBody(c); st.fx.push({k:'snap',x:b.x,y:b.y,p:seg(t,d.fall[0],d.fall[0]+.6),big:true});}
+  const ten=t<d.tight[0]-.2?.45:.45+.55*seg(t,d.tight[0]-.2,d.tight[1]);
+  d.segs.forEach(([a,b,t0])=>{ if(t>t0&&t<d.fall[0]+.3) st.ropes.push({a:hpOut(c,a),b:hpOut(c,b),tension:Math.max(.72,ten)}); });
+  const body=hpBody(c), pos={};
+  let dmg=0;
+  d.riders.forEach(r=>{
+    let p;
+    if(t<r.go) p=polar(pl(t,r.th),pl(t,r.R));
+    else { const f=polar(pl(r.go,r.th),pl(r.go,r.R)),dx=f.x-body.x,dy=f.y-body.y,dd=Math.hypot(dx,dy)||1,k=ease(seg(t,r.go,r.go+.8));
+      p={x:L(f.x,body.x+dx/dd*58,k),y:L(f.y,body.y+dy/dd*58,k)}; }
+    pos[r.i]=p; st.players.push({x:p.x,y:p.y,i:r.i});
+    const s0=Math.max(r.go+.9,d.fall[1]+.1); hits(st,body,t,s0,11.8,2.8); dmg+=act(t,s0,11.8)*(n===1?.06:.11/d.riders.length);
+  });
+  d.arrows.forEach(([i,leg,t0])=>arrow(st,pos[i],hpFoot(c,leg),t,t0,.35));
+  d.holds.forEach(h=>{ if(t<h.legs[0][0]||t>h.to) return; let leg=-1; h.legs.forEach(([tt,l])=>{ if(t>=tt) leg=l; }); st.ropes.push({a:hpOut(c,leg),b:pos[h.i],tension:ten}); });
+  c.life=Math.max(0,1-dmg); return st;
+}
+
+/* ---------- C. Traîner le Buffle ---------- */
+function buffle(t,n){
+  const st=S(), s1={x:640,y:255}, s2={x:526,y:472}, solo=n===1;
+  const A=solo?{shoot:3.5,d0:3.9,d1:5.8}:{shoot:1,d0:1.4,d1:3.2};
+  const B=solo?null:{turn0:7.2,turn1:8,shoot:8.2,d0:8.5,d1:10.2};
+  const x=L(400,526,ease(seg(t,A.d0,A.d1))), y=B?L(255,356,ease(seg(t,B.d0,B.d1))):255;
+  let a=PI;
+  if(solo){a=angLerp(PI,PI+.55,ease(seg(t,.8,3.4)));a=angLerp(a,PI,ease(seg(t,A.d0,A.d0+.7)));}
+  else a=angLerp(PI,-PI/2,ease(seg(t,B.turn0,B.turn1)));
+  const c=col(x,y,a); c.shield=true; c.rump=true; st.c=c;
+  const hit1=t>A.d1, hit2=!!B&&t>B.d1;
+  st.props.push({k:'menhir',x:s1.x,y:s1.y,broken:hit1});
+  if(B) st.props.push({k:'menhir',x:s2.x,y:s2.y,broken:hit2});
+  if((hit1&&t<A.d1+4)||hit2){c.stun=true;c.kneel=.3;}
+  if(hit1&&t<A.d1+.6) st.fx.push({k:'snap',x:s1.x-14,y:s1.y,p:seg(t,A.d1,A.d1+.6),big:true});
+  if(hit2&&t<B.d1+.6) st.fx.push({k:'snap',x:s2.x,y:s2.y-14,p:seg(t,B.d1,B.d1+.6),big:true});
+  const dragging=(t>A.d0&&t<A.d1)||(!!B&&t>B.d0&&t<B.d1);
+  if(dragging) [[58,54],[58,-54],[-58,54],[-58,-54]].forEach((l,k)=>{const f=cpt(c,l[0],l[1]);st.fx.push({k:'dust',x:f.x,y:f.y,p:(t*2.4+k*.25)%1});});
+  let dmg=(hit1?.34:0)+(hit2?.34:0);
+  const rump=cpt(c,-100,0);
+  const strike=(p,lx,ly,a0,b0)=>{hits(st,cpt(c,lx,ly),t,a0,b0,2.6); dmg+=act(t,a0,b0)*.03;};
+  if(solo){
+    let p;
+    if(t<5.8) p=path(t,[[0,130,255],[.9,190,255],[1.4,240,140],[2.4,420,70],[3.2,600,150],[3.5,650,215],[3.9,650,215],[5.8,772,236]]);
+    else {const sp=cpt(c,0,80); p=path(t,[[5.8,772,236],[6.3,772,236],[7,sp.x,sp.y]]);}
+    st.players.push({x:p.x,y:p.y,i:0});
+    const sh=cpt(c,124,0); arrow(st,p,sh,t,.45,.35);
+    if(t>.8&&t<1.7){st.fx.push({k:'snap',x:sh.x,y:sh.y,p:seg(t,.8,1.2)}); st.fx.push({k:'text',x:sh.x,y:sh.y-30,s:'bouclier'});}
+    arrow(st,p,rump,t,A.shoot,.3);
+    if(t>A.shoot+.3&&t<A.d1+.4) st.ropes.push({a:rump,b:p,tension:dragging?.92:.4});
+    strike(p,0,46,7.1,9.7);
+  } else {
+    const p1=path(t,[[0,790,180],[1,670,232],[1.4,670,232],[3.2,775,240],[3.6,775,240],[4.3,536,335],[7.2,536,335],[8,480,404],[8.5,480,404],[10.2,470,512]]);
+    st.players.push({x:p1.x,y:p1.y,i:0});
+    arrow(st,p1,rump,t,A.shoot,.3); arrow(st,p1,rump,t,B.shoot,.3);
+    if((t>A.shoot+.3&&t<A.d1+.4)||(t>B.shoot+.3&&t<B.d1+.4)) st.ropes.push({a:rump,b:p1,tension:dragging?.92:.4});
+    strike(p1,0,-46,4.4,7);
+    let p2;
+    if(n===4){const s=cpt(c,0,80); p2=path(t,[[0,140,255],[3.4,150,255],[4,s.x,s.y]]);}
+    else if(t<7) {const s=cpt(c,0,80); p2=path(t,[[0,140,255],[3.4,150,255],[4,s.x,s.y]]);}
+    else if(t<10.4) p2=path(t,[[7,526,175],[7.8,526,70]]);
+    else {const s=cpt(c,0,80); p2=path(t,[[10.4,526,70],[11.1,s.x,s.y]]);}
+    st.players.push({x:p2.x,y:p2.y,i:1});
+    strike(p2,0,46,4.1,7); strike(p2,0,46,n===4?10.4:11.2,11.9);
+    if(n>=3){
+      let p3;
+      if(t<7){const s=cpt(c,-50,-80); p3=path(t,[[0,300,505],[3.3,300,470],[4,s.x,s.y]]);}
+      else if(t<10.3) p3=path(t,[[7,576,335],[7.7,330,430]]);
+      else {const s=cpt(c,-50,-80); p3=path(t,[[10.3,330,430],[10.9,s.x,s.y]]);}
+      st.players.push({x:p3.x,y:p3.y,i:2});
+      strike(p3,-50,-46,4.1,7); strike(p3,-50,-46,11,11.9);
+    }
+    if(n===4){
+      let p4;
+      if(t<7){const s=cpt(c,-50,80); p4=path(t,[[0,700,40],[3.3,700,60],[4,s.x,s.y]]);}
+      else p4=path(t,[[7,576,175],[7.8,526,60]]);
+      st.players.push({x:p4.x,y:p4.y,i:3});
+      strike(p4,-50,46,4.1,7);
+    }
+  }
+  c.life=Math.max(0,1-dmg); return st;
+}
+
+/* ---------- D. Piloter le Radeau ---------- */
+const RP=[[1.6,170,330],[3.4,330,318],[6.4,520,168],[9.4,690,330],[10.4,712,372]];
+const RS=[{x:330,y:318},{x:520,y:168},{x:690,y:330}];
+let RB=null;
+function radeauBreaks(){ if(RB) return RB; RB=RS.map(s=>{ for(let u=1.6;u<=10.4;u+=.02){const p=spline(u,RP); if(Math.hypot(p.x-s.x,p.y-s.y)<34) return u;} return 99; }); return RB; }
+function radeauHead(u){const a=clamp(u,1.7,10.3),p=spline(a-.05,RP),q=spline(a+.05,RP);return Math.atan2(q.y-p.y,q.x-p.x);}
+function radeau(t,n){
+  const st=S(), br=radeauBreaks(), pos=spline(clamp(t,1.6,10.4),RP);
+  const c=col(pos.x,pos.y,radeauHead(t)); c.kind='radeau'; st.c=c;
+  RS.forEach((s,k)=>{ st.props.push({k:'menhir',x:s.x,y:s.y,broken:t>br[k]}); if(t>br[k]&&t<br[k]+.6) st.fx.push({k:'snap',x:s.x,y:s.y,p:seg(t,br[k],br[k]+.6)}); });
+  const done=br.filter(b=>t>b).length;
+  st.meter={label:'Pierres écrasées',v:done/3,txt:done+' / 3'};
+  // le héros se place un peu avant le virage : à droite il tourne à droite, devant il avance, au milieu il s'arrête
+  const turn=angDiff(radeauHead(t+.45),radeauHead(t+.15))/.3;
+  const go=seg(t,1.3,1.9)*(1-seg(t,9.9,10.4));
+  const along=L(-6,50,go), across=clamp(turn*3,-1,1)*46*go;
+  let p;
+  if(t<1.1){const leg=cpt(c,-70,64); p=path(t,[[0,60,460],[1,leg.x-8,leg.y+30]]);}
+  else if(t<1.5){const k=ease(seg(t,1.1,1.5)); p=cpt(c,L(-70,-6,k),L(94,0,k));}
+  else p=cpt(c,along,across);
+  st.players.push({x:p.x,y:p.y,i:0,on:t>1.2});
+  const follow=[[-120,124],[-120,-124],[-178,0]];
+  for(let k=1;k<n;k++){const q=cpt(c,follow[k-1][0],follow[k-1][1]); st.players.push({x:clamp(q.x,14,786),y:clamp(q.y,58,506),i:k});}
+  c.life=1; return st;
+}
+
+const JEU=[
+ {id:'escalade',name:'Grimper et frapper',tag:'escalade + épée',what:"On s'accroche à une jambe quand il pose le pied, on grimpe, on frappe les veines du dos, on tient pendant le frisson, puis on finit à la nuque.",scene:climb,
+  steps:n=>{const a=[[0,"Le colosse marche."],[2,"Il pose un pied : tu t'accroches à sa jambe."],[2.6,"Tu grimpes jusqu'à son dos."],[3.6,"Tu frappes les veines du dos."],[6,"Il s'immobilise…"],[7,"… puis il frissonne pour faire tomber les héros : tu tiens bon."],[8.4,"Tu montes jusqu'à la nuque."],[9.3,"Tu frappes la nuque."]];
+   if(n>=2)a.push([1.8,"J2 frappe ses pieds."],[5.8,"J2 s'écarte : il piétine ceux qui restent dessous."],[8.9,"J2 revient frapper ses pieds."]);
+   if(n>=3)a.push([1.2,"J3 tire à l'arc de loin."]);
+   if(n===4)a.push([2.4,"J4 grimpe par l'autre jambe."]);
+   return a.sort((x,y)=>x[0]-y[0]);},
+  roles:n=>[[0,"Grimpe, frappe le dos, puis la nuque"],[1,"Frappe les pieds, s'écarte à temps"],[2,"Tire à l'arc de loin"],[3,"Grimpe aussi, par l'autre jambe"]].slice(0,n),
+  coop:n=>["Seul, tout se joue sur son dos : frapper les veines, tenir pendant le frisson, puis finir à la nuque.","À deux, J2 frappe ses pieds, mais doit s'écarter à temps : il piétine ceux qui restent dessous.","À trois, J3 tire à l'arc de loin : flèches illimitées, touche sûre jusqu'à 25 m à pied et 40 m à cheval.","À quatre, deux grimpeurs sur son dos : la nuque tombe plus vite."][n-1]},
+ {id:'hautpas',name:'Ligoter le Haut-Pas',tag:'flèche-corde + galop',what:"Une flèche-corde dans une jambe, puis on galope autour : la corde s'enroule autour des quatre jambes. En s'éloignant, on la serre jusqu'à ce qu'il tombe.",scene:hautpas,
+  steps:n=>{const s=[[0,"Le Haut-Pas : quatre longues jambes, le corps hors d'atteinte."]];
+   if(n===1)s.push([1,"Tu plantes la flèche-corde dans une jambe."],[1.4,"Tu galopes autour : la corde s'enroule, jambe après jambe."],[3.83,"Troisième jambe : il se met à marcher vite."],[4.84,"La quatrième est la plus dure à prendre."],[6.05,"Retour à la première : la boucle est fermée."],[6.4,"Tu t'éloignes : plus tu vas loin, plus ses pieds se serrent."],[7.9,"Ses jambes se bloquent : il tombe."],[9.4,"Tu frappes à l'épée. S'il lui reste de la vie, il se relève, et la fois suivante est plus dure."]);
+   else if(n<4){s.push([1,"J1 plante sa flèche-corde dans une jambe."],[1.2,"J2 plante la sienne dans la jambe voisine : la corde est commune, ce morceau est déjà noué."],[1.6,"Chacun galope pour faire sa moitié du tour."],[2.61,"Trois jambes prises : il se met à marcher vite."],[3.83,"La boucle est fermée."],[3.95,"Ils s'éloignent : ses pieds se serrent."],[5.3,"Ses jambes se bloquent : il tombe."],[6.8,"J1 et J2 frappent à l'épée."]); if(n===3)s.push([5.4,"J3 attendait dessous : il frappe dès la chute."]);}
+   else s.push([.8,"Une flèche-corde par jambe : chacune noue un morceau de la boucle."],[1.55,"Trois jambes prises : il se met à marcher vite."],[1.8,"J4 galope jusqu'à la première jambe."],[2.82,"La boucle est fermée."],[3,"J2 et J4 lâchent : la corde passe à J1 et J3."],[3.1,"J1 et J3 s'éloignent : ses pieds se serrent."],[4.6,"Il tombe."],[5.3,"Tout le monde frappe à l'épée."]);
+   return s.sort((x,y)=>x[0]-y[0]);},
+  roles:n=>n===1?[[0,"Plante la corde, fait le tour, serre, puis frappe"]]:n<4?[[0,"Plante la corde et fait sa moitié du tour"],[1,"Plante dans la jambe voisine et fait l'autre moitié"]].concat(n===3?[[2,"Attend dessous et frappe dès la chute"]]:[]):[[0,"Plante et serre"],[1,"Plante, lâche, puis frappe"],[2,"Plante et serre"],[3,"Plante, ferme la boucle, lâche, puis frappe"]],
+  coop:n=>["Seul, il faut faire tout le tour sans s'arrêter ni trop s'éloigner, sinon la corde casse. La quatrième jambe est la plus dure : il marche vite.","À deux, la corde est commune : la flèche de J2 dans la jambe voisine noue déjà un morceau. Chacun fait une moitié, et la boucle se ferme deux fois plus vite.","À trois, J3 n'a pas besoin de corde : il attend dessous et frappe dès la chute.","À quatre, chaque flèche noue un morceau : la boucle se ferme presque tout de suite. Ceux qui lâchent ne défont rien : la corde passe à ceux qui tiennent encore (sinon, leurs jambes tiennent 8 s)."][n-1]},
+ {id:'buffle',name:'Traîner le Buffle',tag:'flèche-corde + pierres',what:"Son bouclier arrête les flèches de face. Par derrière, une flèche-corde dans la croupe l'attache à la selle : on le traîne à reculons contre une pierre dressée, qui l'assomme. Quand il n'y a plus de pierre debout, on l'achève à l'épée.",scene:buffle,
+  steps:n=>n===1?[[0,"Le Buffle te fait face : son bouclier arrête les flèches."],[.45,"Une flèche de face : arrêtée."],[1,"Tu le contournes au galop, plus vite qu'il ne tourne."],[3.5,"Par derrière : flèche-corde dans sa croupe."],[3.9,"Tu galopes : il est traîné à reculons, les pieds qui glissent."],[5.8,"Il heurte la pierre dressée : sonné, et un tiers de sa vie en moins."],[7.1,"Tu frappes à l'épée pendant qu'il est sonné."],[9.8,"Il se réveille. Il reste une pierre : on recommence."]]
+   :[[0,"Le Buffle fait face à J2, le plus proche : sa croupe est offerte."],[1,"J1 tire la flèche-corde dans sa croupe."],[1.4,"J1 galope : le Buffle est traîné à reculons, les pieds qui glissent."],[3.2,"Première pierre : il est sonné, un tiers de sa vie en moins."],[4.1,n===2?"J1 et J2 frappent à l'épée.":"Tout le monde frappe à l'épée."],[7.2,n===4?"J4 l'appelle du nord : il se tourne vers lui.":"J2 passe au nord : il se tourne vers lui."],[8.2,"J1, au sud, plante une nouvelle flèche-corde."],[8.5,"Il est traîné vers la deuxième pierre."],[10.2,"Deuxième pierre : plus aucune debout, on l'achève à l'épée."]],
+  roles:n=>n===1?[[0,"Contourne, plante la corde, traîne, puis frappe"]]:[[0,"Plante la corde et le traîne"],[1,n===4?"L'attire de face, puis frappe":"L'attire de face, frappe, puis l'attire du nord"],[2,"Frappe quand il est sonné"],[3,"Frappe, puis l'attire du nord"]].slice(0,n),
+  coop:n=>["Seul, il se tourne toujours vers toi : il faut le contourner plus vite qu'il ne tourne pour atteindre sa croupe. Une pierre en 12 s.","À deux, il fait face à J2, le plus proche : J1 a sa croupe tout de suite. Les deux pierres tombent en 12 s.","À trois, une épée de plus à chaque fois qu'il est sonné.","À quatre, J4 l'attire pour la deuxième pierre : J2 n'a pas à quitter sa place."][n-1]},
+ {id:'radeau',name:'Piloter le Radeau',tag:'escalade + place sur le dos',what:"Debout sur son dos large et plat, on le dirige par l'endroit où l'on se tient : devant il avance, sur un côté il tourne de ce côté, au milieu il s'arrête. Le but : lui faire écraser trois pierres.",scene:radeau,
+  steps:n=>{const b=radeauBreaks();return [[0,"Le Radeau : un dos large et plat sur des pattes courtes. Il attend."],[1.1,"Tu montes sur son dos."],[1.6,"Debout vers l'avant : il avance."],[b[0],"Il écrase la première pierre."],[b[0]+.5,"Tu te places à gauche : il tourne à gauche."],[b[1],"Deuxième pierre."],[b[1]+.5,"Tu te places à droite : il tourne à droite."],[b[2],"Troisième pierre."],[9.9,"Tu reviens au milieu : il s'arrête."]];},
+  roles:n=>[[0,"Debout sur le pont, le dirige"]].concat([1,2,3].slice(0,n-1).map(k=>[k,"Suit au sol : pas encore de rôle dans le jeu"])),
+  coop:n=>n===1?"Seul, il suffit de se placer : devant il avance, sur un côté il tourne, au milieu il s'arrête.":"Dans le jeu, une seule personne le dirige : le héros debout sur le pont. Il n'y a pas encore de règle à plusieurs, les autres suivent au sol."},
+];
+
 /* ---------- Textes ---------- */
-const MECH=[
+const IDEES=[
  {id:'clouer',name:'Le clouer au sol',tag:'corde + piquets',what:"Chaque cavalier plante sa flèche-corde dans une jambe, puis attache l'autre bout à un piquet du sol. Plus il y a de cordes, plus le colosse reste immobile.",scene:pin,
   steps:n=>{const r=n===1?1:n-1;const a=[[0,"Le colosse entre dans l'arène."],[2.4,n===1?"Tu tires la flèche-corde dans sa jambe.":`${r} cavalier${r>1?'s':''} tire${r>1?'nt':''} la flèche-corde dans ses jambes.`],[4.2,r===1?"La corde est attachée à un piquet du sol.":"Chaque corde est attachée à un piquet du sol."]];
    if(n===1)a.push([5.3,"Tu reviens frapper avant que la corde cède."],[6.8,"La corde casse : il se libère."]);
@@ -465,7 +681,7 @@ const MECH=[
    a.push([n===1?8.8:7.6,"On frappe pendant qu'il est sonné."]);return a;},
   roles:n=>n===1?[[0,"Attire, puis tire seul sur la colonne"]]:n===2?[[0,"Attire au cor"],[1,"Tire sur la colonne"]]:n===3?[[0,"Attire au cor"],[1,"Tire sur la colonne"],[2,"Le traîne sous la colonne à la corde"]]:[[0,"Attire au cor"],[1,"Tire sur la colonne"],[2,"Le traîne sous la colonne"],[3,"Enflamme le naphte"]],
   coop:n=>["Seul, attirer puis tirer demande un timing serré : souvent, la colonne ne fait qu'effleurer.","À deux, l'un attire et l'autre tire au bon moment : le coup est plein.","À trois, la corde le place exactement sous la colonne, et plus vite.","À quatre, le naphte enflammé ajoute des dégâts pendant qu'il est sonné."][n-1]},
- {id:'diriger',name:'Le chevaucher et le diriger',tag:'escalade + mur',what:"Arrivé à sa tête, on le dirige comme une monture et on le fait foncer dans un mur.",scene:steer,
+ {id:'diriger',name:'Le chevaucher et le diriger',tag:'escalade + mur',what:"Arrivé à sa tête, on le dirige comme une monture et on le fait foncer dans un mur. Idée remplacée par « le dos qui pilote » : on frappe un côté du dos et il fuit le coup (concept en cours).",scene:steer,
   steps:n=>{const a=[[0,"Tu approches à cheval."],[2.3,"Tu t'accroches à une patte et tu grimpes."],[4.4,"Arrivé à la tête, tu le diriges vers le mur."]];
    if(n===1)a.push([5,"Il se débat : la course zigzague."]);
    if(n>=2)a.push([4.8,"J2 frappe son dos pendant la course."]);
@@ -510,6 +726,7 @@ const MECH=[
   roles:n=>n===1?[[0,"Tranche, puis grimpe"]]:n===2?[[0,"Tranche les sangles"],[1,"Grimpe et frappe"]]:n===3?[[0,"Tranche la patte droite"],[1,"Grimpe et frappe"],[2,"Tranche la patte gauche"]]:[[0,"Tranche la patte droite"],[1,"Grimpe et frappe"],[2,"Tranche la patte gauche"],[3,"Grimpe et frappe"]],
   coop:n=>["Seul, il faut trancher puis grimper dans le même temps à genoux : peu de temps pour frapper.","À deux, le grimpeur attend en position : il monte dès qu'il s'agenouille.","À trois, deux pattes tranchées : il reste à genoux bien plus longtemps.","À quatre, deux grimpeurs profitent de ce long moment à genoux."][n-1]},
 ];
+const MECH=JEU.map(m=>Object.assign(m,{group:'jeu'})).concat(IDEES.map(m=>Object.assign(m,{group:'idee'})));
 
 /* ---------- Dessin ---------- */
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
@@ -531,6 +748,10 @@ function drawProp(p,t){
   else if(p.k==='carry'){ctx.strokeStyle=P.rope;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(p.x-12,p.y-15);ctx.lineTo(p.x+12,p.y-15);ctx.stroke();}
   else if(p.k==='puddle'){ctx.fillStyle=P.naphte;ctx.beginPath();ctx.ellipse(p.x,p.y,p.r,p.r*.62,0,0,2*PI);ctx.fill();
     if(p.lit){for(let k=0;k<14;k++){const a=k/14*2*PI, rr2=p.r*(.3+.6*((k*37)%10)/10), fx=p.x+Math.cos(a)*rr2, fy=p.y+Math.sin(a)*rr2*.62, s=7+5*Math.sin(p.t*9+k*1.7);ctx.fillStyle=k%2?P.accent:P.gold;ctx.globalAlpha=.75;ctx.beginPath();ctx.arc(fx,fy,Math.max(2,s),0,2*PI);ctx.fill();}ctx.globalAlpha=1;}}
+  else if(p.k==='menhir'){
+    if(!p.broken){ctx.fillStyle=P.shadow;ctx.beginPath();ctx.ellipse(p.x+12,p.y+14,18,14,0,0,2*PI);ctx.fill();ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;rr(p.x-13,p.y-13,26,26,5);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(p.x-6,p.y-4);ctx.lineTo(p.x+5,p.y+6);ctx.stroke();}
+    else{ctx.globalAlpha=.75;ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(p.x,p.y,24,11,.4,0,2*PI);ctx.fill();ctx.stroke();ctx.globalAlpha=1;}
+  }
   else if(p.k==='plateFly'){ctx.globalAlpha=p.al;ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillStyle=P.plate;ctx.strokeStyle=P.gold;ctx.lineWidth=2;rr(-36,-10,72,20,3);ctx.fill();ctx.stroke();}
   ctx.restore();
 }
@@ -545,11 +766,39 @@ function drawColossus(c,t){
   ctx.fillStyle=P.slab;[-45,0,45].forEach(x=>{rr((x-14)*k,-28*k,28*k,56*k,4);ctx.fill();});
   ctx.strokeStyle=P.stoneDk;ctx.lineWidth=4;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(96*k,-13*k);ctx.quadraticCurveTo(70*k,-42*k,48*k,-34*k);ctx.moveTo(96*k,13*k);ctx.quadraticCurveTo(70*k,42*k,48*k,34*k);ctx.stroke();
   ctx.fillStyle=P.stone;ctx.lineWidth=2;rr(82*k,-16*k,34*k,32*k,6);ctx.fill();ctx.stroke();
+  if(c.rump){ctx.fillStyle=P.stoneDk;rr(-104*k,-34*k,28*k,68*k,10);ctx.fill();}
+  if(c.shield){ctx.strokeStyle=P.accent;ctx.lineWidth=11;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(100*k,-64*k);ctx.quadraticCurveTo(150*k,0,100*k,64*k);ctx.stroke();}
   if(c.plate){ctx.fillStyle=P.plate;ctx.strokeStyle=P.gold;ctx.lineWidth=2;rr(-36*k,-62*k,72*k,20*k,3);ctx.fill();ctx.stroke();}
   if(c.weak){ctx.globalAlpha=.55+.45*Math.sin(t*6);ctx.fillStyle=P.blood;ctx.beginPath();ctx.ellipse(0,-44*k,26*k,9*k,0,0,2*PI);ctx.fill();ctx.globalAlpha=1;}
   ctx.restore();
   if(c.stun){const h=cpt(c,99,0);for(let s=0;s<3;s++){const a=t*4+s*2*PI/3;const x=h.x+Math.cos(a)*22,y=h.y-24+Math.sin(a)*7;ctx.fillStyle=P.gold;ctx.beginPath();ctx.arc(x,y,3.2,0,2*PI);ctx.fill();}}
 }
+function stars(x,y,t){for(let s=0;s<3;s++){const a=t*4+s*2*PI/3;ctx.fillStyle=P.gold;ctx.beginPath();ctx.arc(x+Math.cos(a)*22,y-24+Math.sin(a)*7,3.2,0,2*PI);ctx.fill();}}
+function drawHautPas(c,t){
+  const fl=c.fallen||0, fd=c.fallDir||0, b=hpBody(c);
+  ctx.save();
+  if(fl<1){ctx.globalAlpha=1-fl;ctx.fillStyle=P.shadow;ctx.beginPath();ctx.ellipse(c.x+44,c.y+50,42,32,0,0,2*PI);ctx.fill();ctx.globalAlpha=1;}
+  ctx.lineCap='round';
+  for(let i=0;i<4;i++){const f=hpFoot(c,i);ctx.strokeStyle=P.stoneDk;ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(f.x,f.y);ctx.stroke();}
+  for(let i=0;i<4;i++){const f=hpFoot(c,i);ctx.fillStyle=P.stoneDk;ctx.beginPath();ctx.arc(f.x,f.y,14,0,2*PI);ctx.fill();}
+  ctx.translate(b.x,b.y);ctx.rotate(angLerp(c.a,fd+PI/2,fl));
+  ctx.fillStyle=P.stone;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,42+30*fl,30,0,0,2*PI);ctx.fill();ctx.stroke();
+  ctx.fillStyle=P.slab;ctx.beginPath();ctx.ellipse(0,0,22+16*fl,13,0,0,2*PI);ctx.fill();
+  ctx.fillStyle=P.stone;ctx.beginPath();ctx.arc(50+30*fl,0,13,0,2*PI);ctx.fill();ctx.stroke();
+  ctx.restore();
+  if(c.stun) stars(b.x,b.y,t);
+}
+function drawRadeau(c){
+  ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.a);
+  ctx.fillStyle=P.shadow;ctx.beginPath();ctx.ellipse(10,14,118,92,0,0,2*PI);ctx.fill();
+  [[70,64],[70,-64],[-70,64],[-70,-64]].forEach(([x,y])=>{ctx.fillStyle=P.stoneDk;rr(x-12,y-12,24,24,4);ctx.fill();});
+  ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;rr(-98,-78,196,156,12);ctx.fill();ctx.stroke();
+  ctx.strokeStyle=P.stone;ctx.lineWidth=1.5;for(let x=-74;x<98;x+=24){ctx.beginPath();ctx.moveTo(x,-74);ctx.lineTo(x,74);ctx.stroke();}
+  ctx.setLineDash([5,5]);ctx.strokeStyle=P.muted;ctx.globalAlpha=.7;ctx.beginPath();ctx.moveTo(14,-78);ctx.lineTo(14,78);ctx.moveTo(14,0);ctx.lineTo(98,0);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
+  ctx.fillStyle=P.stone;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;rr(96,-15,28,30,6);ctx.fill();ctx.stroke();
+  ctx.restore();
+}
+function drawBody(c,t){ if(c.kind==='hautpas') drawHautPas(c,t); else if(c.kind==='radeau') drawRadeau(c); else drawColossus(c,t); }
 function drawRope(r,t){
   ctx.save();ctx.lineCap='round';
   if(r.broken){const k=clamp(r.bt/.6);if(k>=1){ctx.restore();return;}ctx.globalAlpha=1-k;ctx.strokeStyle=P.accent;ctx.lineWidth=2.4;const m={x:(r.a.x+r.b.x)/2,y:(r.a.y+r.b.y)/2};ctx.beginPath();ctx.moveTo(r.a.x,r.a.y);ctx.lineTo(L(m.x,r.a.x,k),L(m.y,r.a.y,k));ctx.moveTo(r.b.x,r.b.y);ctx.lineTo(L(m.x,r.b.x,k),L(m.y,r.b.y,k));ctx.stroke();ctx.restore();return;}
@@ -572,23 +821,25 @@ function drawFx(f){
   else if(f.k==='hit'){const big=f.big?1.6:1;ctx.globalAlpha=1-f.p;ctx.strokeStyle=P.blood;ctx.lineWidth=2.5;ctx.lineCap='round';for(let k=0;k<7;k++){const a=k/7*2*PI+.3,r1=4*big,r2=(8+12*f.p)*big;ctx.beginPath();ctx.moveTo(f.x+Math.cos(a)*r1,f.y+Math.sin(a)*r1);ctx.lineTo(f.x+Math.cos(a)*r2,f.y+Math.sin(a)*r2);ctx.stroke();}}
   else if(f.k==='arrow'){const x=L(f.x1,f.x2,f.p),y=L(f.y1,f.y2,f.p),a=Math.atan2(f.y2-f.y1,f.x2-f.x1),len=f.big?30:16;ctx.translate(x,y);ctx.rotate(a);ctx.strokeStyle=f.fire?P.accent:P.ink;ctx.lineWidth=f.big?4:2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-len,0);ctx.lineTo(0,0);ctx.stroke();ctx.fillStyle=f.fire?P.gold:P.ink;ctx.beginPath();ctx.moveTo(3,0);ctx.lineTo(-5,-4);ctx.lineTo(-5,4);ctx.closePath();ctx.fill();}
   else if(f.k==='snap'){const big=f.big?2:1;ctx.globalAlpha=1-f.p;ctx.strokeStyle=P.accent;ctx.lineWidth=3;ctx.lineCap='round';for(let k=0;k<9;k++){const a=k/9*2*PI,r1=6*big,r2=(10+22*f.p)*big;ctx.beginPath();ctx.moveTo(f.x+Math.cos(a)*r1,f.y+Math.sin(a)*r1);ctx.lineTo(f.x+Math.cos(a)*r2,f.y+Math.sin(a)*r2);ctx.stroke();}}
+  else if(f.k==='dust'){ctx.globalAlpha=(1-f.p)*.5;ctx.fillStyle=P.muted;ctx.beginPath();ctx.arc(f.x,f.y,4+10*f.p,0,2*PI);ctx.fill();}
   else if(f.k==='text'){ctx.fillStyle=P.ink;ctx.font='600 14px '+P.font;ctx.textAlign='center';ctx.fillText(f.s,f.x,f.y);}
   ctx.restore();
 }
-function hud(life){
-  ctx.save();ctx.fillStyle=P.ink;ctx.font='600 13px '+P.font;ctx.textBaseline='top';ctx.fillText('Vie du colosse',16,14);
-  ctx.fillStyle=P.grid;rr(16,34,200,9,4);ctx.fill();ctx.fillStyle=P.blood;rr(16,34,Math.max(0,200*clamp(life)),9,4);ctx.fill();
-  ctx.fillStyle=P.muted;ctx.font='500 12px '+P.mono;ctx.fillText(Math.round(clamp(life)*100)+' %',224,32);ctx.restore();
+function hud(life,meter){
+  const lab=meter?meter.label:'Vie du colosse', v=meter?meter.v:life, txt=meter?meter.txt:Math.round(clamp(life)*100)+' %';
+  ctx.save();ctx.fillStyle=P.ink;ctx.font='600 13px '+P.font;ctx.textBaseline='top';ctx.fillText(lab,16,14);
+  ctx.fillStyle=P.grid;rr(16,34,200,9,4);ctx.fill();ctx.fillStyle=meter?P.ink:P.blood;if(v>.02){rr(16,34,200*clamp(v),9,4);ctx.fill();}
+  ctx.fillStyle=P.muted;ctx.font='500 12px '+P.mono;ctx.fillText(txt,224,32);ctx.restore();
 }
 
 /* ---------- État et interface ---------- */
 let mech=0,n=2,t=0,playing=true,last=null,lastStep=-1;
-try{const s=JSON.parse(localStorage.getItem('gestes-colosses')||'{}');if(Number.isInteger(s.m)&&s.m>=0&&s.m<MECH.length)mech=s.m;if([1,2,3,4].includes(s.n))n=s.n;}catch(e){}
+try{const s=JSON.parse(localStorage.getItem('gestes-colosses-2')||'{}');if(Number.isInteger(s.m)&&s.m>=0&&s.m<MECH.length)mech=s.m;if([1,2,3,4].includes(s.n))n=s.n;}catch(e){}
 const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 if(reduce){playing=false;t=6;}
 const $=id=>document.getElementById(id);
-function save(){try{localStorage.setItem('gestes-colosses',JSON.stringify({m:mech,n}));}catch(e){}}
-function buildTabs(){$('tabs').innerHTML='';MECH.forEach((m,i)=>{const b=document.createElement('button');b.type='button';b.className='tab';b.id='tab-'+m.id;b.setAttribute('aria-pressed',String(i===mech));b.innerHTML=`${m.name}<small>${m.tag}</small>`;b.onclick=()=>{mech=i;t=0;save();refresh();};$('tabs').appendChild(b);});}
+function save(){try{localStorage.setItem('gestes-colosses-2',JSON.stringify({m:mech,n}));}catch(e){}}
+function buildTabs(){['jeu','idee'].forEach(g=>{$('tabs-'+g).innerHTML='';});MECH.forEach((m,i)=>{const b=document.createElement('button');b.type='button';b.className='tab';b.id='tab-'+m.id;b.setAttribute('aria-pressed',String(i===mech));b.innerHTML=`${m.name}<small>${m.tag}</small>`;b.onclick=()=>{mech=i;t=0;save();refresh();};$('tabs-'+m.group).appendChild(b);});}
 function buildSeg(){$('seg').innerHTML='';[1,2,3,4].forEach(k=>{const b=document.createElement('button');b.type='button';b.id='n-'+k;b.textContent=k===1?'1 joueur':k+' joueurs';b.setAttribute('aria-pressed',String(k===n));b.onclick=()=>{n=k;t=0;save();refresh();};$('seg').appendChild(b);});}
 function fmt(x){return x.toFixed(1).replace('.',',');}
 function refresh(){
@@ -605,12 +856,12 @@ function render(){
   const m=MECH[mech],st=m.scene(t,n);
   ctx.setTransform(2,0,0,2,0,0);ground();
   st.props.filter(p=>p.k!=='plateFly').forEach(p=>drawProp(p,t));
-  drawColossus(st.c,t);
+  drawBody(st.c,t);
   st.props.filter(p=>p.k==='plateFly').forEach(p=>drawProp(p,t));
   st.ropes.forEach(r=>drawRope(r,t));
   st.players.forEach(drawPlayer);
   st.fx.forEach(drawFx);
-  hud(st.c.life);
+  hud(st.c.life,st.meter);
   const steps=m.steps(n);let cur=0;steps.forEach(([tt],k)=>{if(t>=tt)cur=k;});
   if(cur!==lastStep){$('now').textContent=steps[cur][1];document.querySelectorAll('ol.steps li').forEach((li,k)=>li.classList.toggle('on',k<=cur));lastStep=cur;}
   $('scrub').value=t.toFixed(2);$('clock').textContent=fmt(t)+' s / 12 s';
