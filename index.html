@@ -630,13 +630,18 @@ function radeau(t,n){
   const turn=angDiff(radeauHead(t+.45),radeauHead(t+.15))/.3;
   const go=seg(t,1.3,1.9)*(1-seg(t,9.9,10.4));
   const along=L(-6,50,go), across=clamp(turn*3,-1,1)*46*go;
-  let p;
-  if(t<1.1){const leg=cpt(c,-70,64); p=path(t,[[0,60,460],[1,leg.x-8,leg.y+30]]);}
-  else if(t<1.5){const k=ease(seg(t,1.1,1.5)); p=cpt(c,L(-70,-6,k),L(94,0,k));}
-  else p=cpt(c,along,across);
-  st.players.push({x:p.x,y:p.y,i:0,on:t>1.2});
-  const follow=[[-120,124],[-120,-124],[-178,0]];
-  for(let k=1;k<n;k++){const q=cpt(c,follow[k-1][0],follow[k-1][1]); st.players.push({x:clamp(q.x,14,786),y:clamp(q.y,58,506),i:k});}
+  // à plusieurs, chacun a sa place autour de la moyenne (somme des écarts nulle) : c'est la moyenne qui dirige
+  const OFF={1:[[0,0]],2:[[0,30],[0,-30]],3:[[12,30],[12,-30],[-24,0]],4:[[16,30],[16,-30],[-16,30],[-16,-30]]}[n];
+  const START=[[60,460],[60,60],[760,470],[760,50]];
+  OFF.forEach(([oa,oc],i)=>{
+    const side=i%2?-1:1;
+    let p;
+    if(t<1.1){const leg=cpt(c,-70,side*64); p=path(t,[[0,START[i][0],START[i][1]],[1,leg.x-8,leg.y+side*30]]);}
+    else if(t<1.5){const k=ease(seg(t,1.1,1.5)); p=cpt(c,L(-70,-6+oa,k),L(side*94,oc,k));}
+    else p=cpt(c,along+oa,clamp(across+oc,-70,70));
+    st.players.push({x:p.x,y:p.y,i,on:t>1.2});
+  });
+  if(n>1&&t>1.5){const m=cpt(c,along,across); st.props.push({k:'avgMark',x:m.x,y:m.y,over:true});}
   c.life=1; return st;
 }
 
@@ -662,10 +667,10 @@ const JEU=[
    :[[0,"J2 attire le Buffle de face : sa croupe est offerte à J1."],[1,"J1 tire la flèche-corde dans sa croupe."],[1.4,"J1 galope : le Buffle est traîné à reculons, les pieds qui glissent."],[3.2,"Première pierre : il est sonné, un tiers de sa vie en moins."],[4.1,n===2?"J1 et J2 frappent à l'épée.":"Tout le monde frappe à l'épée."],[7.2,n===4?"J4 l'appelle du nord : il se tourne vers lui.":"J2 passe au nord : il se tourne vers lui."],[8.2,"J1, au sud, plante une nouvelle flèche-corde."],[8.5,"Il est traîné vers la deuxième pierre."],[10.2,"Deuxième pierre : plus aucune debout, on l'achève à l'épée."]],
   roles:n=>n===1?[[0,"Contourne, plante la corde, traîne, puis frappe"]]:[[0,"Plante la corde et le traîne"],[1,n===4?"L'attire de face, puis frappe":"L'attire de face, frappe, puis l'attire du nord"],[2,"Frappe quand il est sonné"],[3,"Frappe, puis l'attire du nord"]].slice(0,n),
   coop:n=>["Seul, il se tourne toujours vers toi : il faut le contourner plus vite qu'il ne tourne pour atteindre sa croupe. Une pierre en 12 s.","À deux, J2 l'attire de face : J1 a sa croupe tout de suite. Les deux pierres tombent en 12 s.","À trois, une épée de plus à chaque fois qu'il est sonné.","À quatre, J4 l'attire pour la deuxième pierre : J2 n'a pas à quitter sa place."][n-1]},
- {id:'radeau',name:'Piloter le Radeau',tag:'escalade + place sur le dos',what:"Debout sur son dos large et plat, on le dirige par l'endroit où l'on se tient : devant il avance, entre le milieu et l'avant il ralentit, sur un côté il tourne de ce côté, au milieu ou à l'arrière il s'arrête. Le but : lui faire écraser trois pierres.",scene:radeau,
-  steps:n=>{const b=radeauBreaks();return [[0,"Le Radeau : un dos large et plat sur des pattes courtes. Il attend."],[1.1,"Tu montes sur son dos."],[1.6,"Debout vers l'avant : il avance."],[b[0],"Il écrase la première pierre."],[b[0]+.5,"Tu te places à gauche : il tourne à gauche."],[b[1],"Deuxième pierre."],[b[1]+.5,"Tu te places à droite : il tourne à droite."],[b[2],"Troisième pierre."],[9.9,"Tu reviens au milieu : il s'arrête."]];},
-  roles:n=>[[0,"Debout sur le pont, le dirige"]].concat([1,2,3].slice(0,n-1).map(k=>[k,"Suit au sol : pas encore de rôle dans le jeu"])),
-  coop:n=>n===1?"Seul, il suffit de se placer : devant il avance, sur un côté il tourne, au milieu il s'arrête.":"Dans le jeu, une seule personne le dirige : le héros debout sur le pont. Il n'y a pas encore de règle à plusieurs, les autres suivent au sol."},
+ {id:'radeau',name:'Piloter le Radeau',tag:'escalade + place sur le dos',what:"Debout sur son dos large et plat, on le dirige par l'endroit où l'on se tient : devant il avance, entre le milieu et l'avant il ralentit, sur un côté il tourne de ce côté, au milieu ou à l'arrière il s'arrête. Le but : lui faire écraser trois pierres. À plusieurs (décidé le 7 novembre, pas encore codé), c'est la moyenne des places des joueurs sur le pont qui le dirige.",scene:radeau,
+  steps:n=>{const b=radeauBreaks(), s=n===1;return [[0,"Le Radeau : un dos large et plat sur des pattes courtes. Il attend."],[1.1,s?"Tu montes sur son dos.":"Tout le monde monte sur son dos."],[1.6,s?"Debout vers l'avant : il avance.":"Un joueur de chaque côté, vers l'avant : la moyenne (la croix) est au centre, il avance tout droit."],[b[0],"Il écrase la première pierre."],[b[0]+.5,s?"Tu te places à gauche : il tourne à gauche.":"Le groupe glisse à gauche : la moyenne passe à gauche, il tourne à gauche."],[b[1],"Deuxième pierre."],[b[1]+.5,s?"Tu te places à droite : il tourne à droite.":"Le groupe glisse à droite : il tourne à droite."],[b[2],"Troisième pierre."],[9.9,s?"Tu reviens au milieu : il s'arrête.":"Tout le monde revient au milieu : il s'arrête."]];},
+  roles:n=>n===1?[[0,"Debout sur le pont, le dirige"]]:[0,1,2,3].slice(0,n).map(k=>[k,"Debout sur le pont : sa place compte dans la moyenne"]),
+  coop:n=>n===1?"Seul, il suffit de se placer : devant il avance, sur un côté il tourne, au milieu il s'arrête.":"À plusieurs (décidé le 7 novembre, pas encore codé) : il suit la moyenne des places des joueurs sur le pont, marquée par la croix. Un à droite et un à gauche, il va tout droit : il faut s'entendre pour tourner. Un joueur qui reste au milieu le fait ralentir."},
 ];
 
 /* ---------- Sauver un colosse : outils ---------- */
@@ -1052,6 +1057,7 @@ function drawProp(p,t){
   else if(p.k==='marsh'){ctx.fillStyle=P.marsh;ctx.globalAlpha=.75;ctx.beginPath();ctx.ellipse(p.x,p.y,p.rx,p.ry,0,0,2*PI);ctx.fill();ctx.globalAlpha=.35;ctx.fillStyle=P.stoneDk;[[-80,-40,26],[60,50,20],[90,-60,16],[-110,40,18]].forEach(([dx,dy,r])=>{ctx.beginPath();ctx.ellipse(p.x+dx,p.y+dy,r,r*.6,0,0,2*PI);ctx.fill();});}
   else if(p.k==='jar'){ctx.fillStyle=P.water;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=1.5;rr(p.x-6,p.y-8,12,16,4);ctx.fill();ctx.stroke();}
   else if(p.k==='spearFly'){ctx.globalAlpha=p.al;ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.strokeStyle=P.ink;ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-55,0);ctx.lineTo(55,0);ctx.stroke();}
+  else if(p.k==='avgMark'){ctx.strokeStyle=P.ink;ctx.lineWidth=2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(p.x,p.y,9,0,2*PI);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(p.x-6,p.y);ctx.lineTo(p.x+6,p.y);ctx.moveTo(p.x,p.y-6);ctx.lineTo(p.x,p.y+6);ctx.stroke();}
   else if(p.k==='plateFly'){ctx.globalAlpha=p.al;ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillStyle=P.plate;ctx.strokeStyle=P.gold;ctx.lineWidth=2;rr(-36,-10,72,20,3);ctx.fill();ctx.stroke();}
   ctx.restore();
 }
