@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestes contre les colosses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Mise en page : en-tête court, choix de la mécanique et du nombre de joueurs, puis la scène animée vue de dessus et son panneau de lecture (côte à côte, empilés sur téléphone) */
+:root{
+  --bg:#ecebe7; --panel:#f7f6f3; --ink:#22211f; --muted:#68645d; --line:#d4d0c8;
+  --ground:#e2ddd2; --grid:#d3cdc0; --stone:#8e8c87; --stone-dk:#5b5a56; --slab:#a8a59e; --plate:#4c4a46;
+  --shadow:rgba(44,50,112,.22); --accent:#b0532c; --blood:#a8232b; --rope:#8a6a3e; --gold:#b98a2e; --naphte:rgba(26,22,30,.62);
+  --p1:#1d8c83; --p2:#cf8414; --p3:#5650c0; --p4:#bf3f8b; --on-dot:#ffffff;
+  --display:"Marcellus","Iowan Old Style",Georgia,serif;
+  --body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171b; --panel:#1d2026; --ink:#ebe7df; --muted:#a29c92; --line:#31353d;
+    --ground:#262a30; --grid:#30353c; --stone:#8f8d88; --stone-dk:#55544f; --slab:#a7a49c; --plate:#3a3935;
+    --shadow:rgba(0,0,0,.4); --accent:#e07b50; --blood:#d4434b; --rope:#c49b63; --gold:#dcae4a; --naphte:rgba(5,4,8,.7);
+    --p1:#38c2b5; --p2:#f0a637; --p3:#8a84f2; --p4:#e56ab6; --on-dot:#ffffff; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171b; --panel:#1d2026; --ink:#ebe7df; --muted:#a29c92; --line:#31353d;
+  --ground:#262a30; --grid:#30353c; --stone:#8f8d88; --stone-dk:#55544f; --slab:#a7a49c; --plate:#3a3935;
+  --shadow:rgba(0,0,0,.4); --accent:#e07b50; --blood:#d4434b; --rope:#c49b63; --gold:#dcae4a; --naphte:rgba(5,4,8,.7);
+  --p1:#38c2b5; --p2:#f0a637; --p3:#8a84f2; --p4:#e56ab6; --on-dot:#ffffff; color-scheme:dark;
+}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px;display:grid;gap:22px}
+header{display:grid;gap:6px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4.2vw,42px);line-height:1.15;margin:0;text-wrap:balance}
+.lede{color:var(--muted);max-width:68ch;margin:0}
+.controls{display:grid;gap:14px}
+.group{display:grid;gap:8px}
+.label{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tab{font:inherit;font-size:15px;line-height:1.2;padding:9px 12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;cursor:pointer;text-align:left}
+.tab small{display:block;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.tab[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab[aria-pressed="true"] small{color:var(--bg);opacity:.75}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;width:max-content;max-width:100%}
+.seg button{font:inherit;padding:9px 16px;border:0;border-right:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stage{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:880px){.stage{grid-template-columns:minmax(0,1fr)}}
+.scene{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;display:grid;gap:10px;min-width:0}
+canvas{display:block;width:100%;max-width:100%;height:auto;aspect-ratio:800/520;border-radius:5px;background:var(--ground)}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{font:inherit;font-size:14px;padding:7px 12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;cursor:pointer}
+#scrub{flex:1;min-width:140px;accent-color:var(--accent)}
+.mono{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:4px;border-radius:2px;display:inline-block}
+.panel{display:grid;gap:18px;min-width:0}
+.panel h2{font-family:var(--display);font-weight:400;font-size:26px;line-height:1.2;margin:0;text-wrap:balance}
+.panel .what{color:var(--muted);margin:4px 0 0}
+.now{font-size:19px;line-height:1.4;font-weight:600;min-height:2.8em;border-left:3px solid var(--accent);padding-left:12px}
+ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+ol.steps li{display:grid;grid-template-columns:52px 1fr;gap:8px;color:var(--muted);font-size:15px}
+ol.steps li.on{color:var(--ink)}
+ol.steps li .mono{font-size:12px;padding-top:2px}
+ul.roles{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+ul.roles li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;font-size:15px}
+.dot{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:var(--on-dot);font-weight:600;font-size:13px}
+.coop{border-top:1px solid var(--line);padding-top:14px;display:grid;gap:4px}
+.coop p{margin:0}
+@media (prefers-reduced-motion: reduce){ .tab,.btn{transition:none} }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Gestes contre les colosses</h1>
+    <p class="lede">Huit idées de mécaniques qui prolongent la corde, vues de dessus comme dans le jeu. Choisis une mécanique et un nombre de joueurs : l'animation montre ce que chacun fait et ce que la coopération change.</p>
+  </header>
+
+  <section class="controls" aria-label="Choix">
+    <div class="group">
+      <span class="label" id="lbl-mech">Mécanique</span>
+      <div class="tabs" id="tabs" role="group" aria-labelledby="lbl-mech"></div>
+    </div>
+    <div class="group">
+      <span class="label" id="lbl-n">Joueurs</span>
+      <div class="seg" id="seg" role="group" aria-labelledby="lbl-n"></div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="scene">
+      <canvas id="cv" width="1600" height="1040" aria-label="Animation de la mécanique, vue de dessus"></canvas>
+      <div class="bar">
+        <button class="btn" id="play" type="button">Pause</button>
+        <button class="btn" id="restart" type="button">Rejouer</button>
+        <input id="scrub" type="range" min="0" max="12" step="0.01" value="0" aria-label="Moment de l'animation">
+        <span class="mono" id="clock">0,0 s / 12 s</span>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="panel">
+      <div>
+        <h2 id="m-name"></h2>
+        <p class="what" id="m-what"></p>
+      </div>
+      <div class="now" id="now" aria-live="polite"></div>
+      <div class="group">
+        <span class="label">Déroulé</span>
+        <ol class="steps" id="steps"></ol>
+      </div>
+      <div class="group">
+        <span class="label">Rôles</span>
+        <ul class="roles" id="roles"></ul>
+      </div>
+      <div class="coop">
+        <span class="label">Ce que change le nombre de joueurs</span>
+        <p id="coop"></p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+const W=800,H=520,T=12,PI=Math.PI;
+const L=(a,b,t)=>a+(b-a)*t, clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const seg=(t,a,b)=>clamp((t-a)/(b-a));
+const act=(t,a,b)=>Math.max(0,Math.min(t,b)-a);
+function path(t,pts){
+  if(t<=pts[0][0]) return {x:pts[0][1],y:pts[0][2]};
+  for(let i=1;i<pts.length;i++){
+    if(t<=pts[i][0]){const p=pts[i-1],q=pts[i];const k=ease((t-p[0])/Math.max(1e-6,q[0]-p[0]));return {x:L(p[1],q[1],k),y:L(p[2],q[2],k)};}
+  }
+  const e=pts[pts.length-1]; return {x:e[1],y:e[2]};
+}
+function angLerp(a,b,k){let d=((b-a)%(2*PI)+3*PI)%(2*PI)-PI;return a+d*k;}
+function col(x,y,a=0){return {x,y,a,kneel:0,shake:0,stun:false,plate:false,weak:false,straps:[],life:1};}
+function cpt(c,lx,ly){const s=Math.sin(c.a),k=Math.cos(c.a);return {x:c.x+lx*k-ly*s,y:c.y+lx*s+ly*k};}
+function S(){return {c:null,players:[],ropes:[],props:[],fx:[]};}
+function hits(st,pt,t,a,b,rate=2.5){ if(t>a&&t<b){const ph=((t-a)*rate)%1; if(ph<.4) st.fx.push({k:'hit',x:pt.x,y:pt.y,p:ph/.4});}}
+function horn(st,i,p,t,a,b){ if(t>a&&t<b){ for(let k=0;k<2;k++){const ph=(((t-a)*1.1)+k*.5)%1; st.fx.push({k:'ring',i,x:p.x,y:p.y,r:14+ph*80,al:1-ph});}}}
+function arrow(st,from,to,t,a,dur=.4,extra){ if(t>a&&t<a+dur) st.fx.push(Object.assign({k:'arrow',x1:from.x,y1:from.y,x2:to.x,y2:to.y,p:(t-a)/dur},extra||{})); }
+function arrowsLoop(st,from,to,t,a,b,rate=1.2){ if(t>a&&t<b){const ph=((t-a)*rate)%1; if(ph<.45) st.fx.push({k:'arrow',x1:from.x,y1:from.y,x2:to.x,y2:to.y,p:ph/.45}); else if(ph<.62) st.fx.push({k:'hit',x:to.x,y:to.y,p:(ph-.45)/.17});}}
+
+/* ---------- 1. Le clouer au sol ---------- */
+function pin(t,n){
+  const st=S(), ropes=n===1?1:n-1, end=10.4;
+  const c=col(L(230,400,ease(seg(t,0,2.4))),260); st.c=c;
+  const stakes=[[150,100],[150,420],[650,100],[650,420]].slice(0,ropes);
+  const legs=[[-58,-54],[-58,54],[58,-54],[58,54]];
+  stakes.forEach(s=>st.props.push({k:'stake',x:s[0],y:s[1]}));
+  const snap=ropes===1?(n===1?6.8:7.6):99;
+  if(t>=4.4&&t<end) c.shake=ropes===1?1:ropes===2?.5:.2;
+  if(ropes>=3) c.kneel=ease(seg(t,5.2,6))*(1-ease(seg(t,10,10.8)));
+  if(t>snap){ c.x+=Math.min(t-snap,3)*18; c.shake=.15; }
+  let dmg=0;
+  for(let i=0;i<ropes;i++){
+    const s=stakes[i], leg=cpt(c,legs[i][0],legs[i][1]);
+    const sx=s[0]<400?-1:1, sy=s[1]<260?-1:1;
+    const start={x:400+sx*370,y:260+sy*250};
+    const pts=[[0,start.x,start.y],[2.4,leg.x+sx*80,leg.y+sy*70],[4.2,s[0]-sx*22,s[1]]];
+    if(n===1){const b=cpt(c,-30,92); pts.push([5.2,b.x,b.y],[6.8,b.x,b.y],[8.4,start.x,start.y]);}
+    else pts.push([10.6,s[0]-sx*22,s[1]],[12,start.x,start.y]);
+    const p=path(t,pts); st.players.push({x:p.x,y:p.y,i});
+    arrow(st,p,leg,t,2.4,.35);
+    if(t>2.75&&t<Math.max(end,snap+.7)){
+      const anchor=t<4.2?p:{x:s[0],y:s[1]};
+      st.ropes.push({a:leg,b:anchor,tension:t>4.4?(ropes===1?.95:ropes===2?.7:.5):.3,broken:i===0&&t>=snap,bt:t-snap});
+    }
+  }
+  if(n===1){ const t1=Math.min(snap,end); hits(st,cpt(c,-30,48),t,5.3,t1); dmg+=act(t,5.3,t1)*.06; }
+  if(t>=snap&&t<snap+.5) st.fx.push({k:'snap',x:stakes[0][0],y:stakes[0][1],p:seg(t,snap,snap+.5)});
+  if(n>=2){
+    const i=n-1, t1=Math.min(snap,end);
+    if(n<4){
+      const tg=cpt(c,0,92); const p=path(t,[[0,400,505],[4,400,440],[4.8,tg.x,tg.y],[t1,tg.x,tg.y],[Math.min(t1+1.4,12),400,505]]);
+      st.players.push({x:p.x,y:p.y,i}); hits(st,cpt(c,0,48),t,4.9,t1); dmg+=act(t,4.9,t1)*.06;
+    } else {
+      const a1=cpt(c,-58,54);
+      const p=path(t,[[0,400,505],[4,330,420],[4.8,a1.x,a1.y+22],[5.6,c.x-40,c.y+12],[6.2,c.x+80,c.y],[end,c.x+80,c.y],[11.6,400,505]]);
+      st.players.push({x:p.x,y:p.y,i,on:t>5.4&&t<end}); hits(st,cpt(c,96,0),t,6.3,end,3); dmg+=act(t,6.3,end)*.11;
+    }
+  }
+  c.life=1-dmg; return st;
+}
+
+/* ---------- 2. Arracher son armure ---------- */
+function armor(t,n){
+  const st=S(); const c=col(400,300,.12*Math.sin(t*.6)); st.c=c;
+  const rip=n===1?8.6:5.4;
+  c.plate=t<rip; c.weak=t>=rip;
+  if(n===4) c.a+=-.5*ease(seg(t,rip,rip+1));
+  const plate=cpt(c,0,-52);
+  const pullers=n===1?[0]:[0,1];
+  let dmg=0;
+  pullers.forEach((i,k)=>{
+    const spread=pullers.length===1?0:(k===0?-1:1);
+    const near={x:400+spread*80,y:170}, away={x:400+spread*130,y:46};
+    let pts;
+    if(n===1) pts=[[0,150,40],[1.6,near.x,near.y],[2.4,near.x,near.y],[4.8,away.x,away.y],[5.4,away.x,away.y],[6.1,near.x,near.y+10],[6.4,near.x,near.y+10],[8.6,away.x,away.y],[9.4,560,130],[11.6,560,130]];
+    else pts=[[0,spread<0?110:690,40],[1.6,near.x,near.y],[2.4,near.x,near.y],[5.4,away.x,away.y],[6.4,near.x+spread*60,near.y+10],[11.6,near.x+spread*60,near.y+10]];
+    const p=path(t,pts); st.players.push({x:p.x,y:p.y,i});
+    arrow(st,p,plate,t,2.0,.35); if(n===1) arrow(st,p,plate,t,6.05,.3);
+    const pulling=n===1?((t>2.4&&t<5.2)||(t>6.4&&t<rip)):(t>2.4&&t<rip);
+    const attached=n===1?((t>2.35&&t<5.4)||(t>6.35&&t<rip)):(t>2.35&&t<rip);
+    if(attached){
+      let ten=.2;
+      if(pulling) ten=n===1?(t<5.2?clamp((t-2.4)/2.4)*.8:clamp((t-6.4)/2.1)):clamp((t-2.4)/2.8);
+      st.ropes.push({a:plate,b:p,tension:ten}); if(ten>.6) c.shake=Math.max(c.shake,.5*ten);
+    }
+    if(n===1&&t>5.1&&t<5.9) st.fx.push({k:'text',x:plate.x,y:plate.y-34,s:'trop lourd'});
+    if(t>rip){
+      const w=cpt(c,0,-42);
+      if(n<=2){ arrowsLoop(st,p,w,t,rip+.9,11.5); dmg+=act(t,rip+.9,11.5)*.05; }
+      else { hits(st,w,t,rip+1.1,11.5); dmg+=act(t,rip+1.1,11.5)*.04; }
+    }
+  });
+  if(t>=rip&&t<rip+1.4) st.props.push({k:'plateFly',x:plate.x,y:L(plate.y,plate.y-110,ease(seg(t,rip,rip+1.4))),a:seg(t,rip,rip+1.4)*2.2,al:1-seg(t,rip+.8,rip+1.4)});
+  if(n>=3){
+    const i=2, p=path(t,[[0,400,505],[3,600,430],[11.6,600,430]]); st.players.push({x:p.x,y:p.y,i});
+    if(n===3){ const w=cpt(c,0,-42); arrowsLoop(st,p,w,t,rip+.6,11.5,1.3); dmg+=act(t,rip+.6,11.5)*.05; }
+    else horn(st,i,p,t,rip-.4,11);
+  }
+  if(n===4){
+    const i=3, w=cpt(c,0,-66), p=path(t,[[0,200,505],[rip,230,250],[rip+1.3,w.x,w.y],[11.4,w.x,w.y]]);
+    st.players.push({x:p.x,y:p.y,i}); hits(st,cpt(c,0,-44),t,rip+1.3,11.4,3); dmg+=act(t,rip+1.3,11.4)*.09;
+  }
+  c.life=1-dmg; return st;
+}
+
+/* ---------- 3. Le décor comme arme ---------- */
+function decor(t,n){
+  const st=S(), colm={x:560,y:140}, spot={x:530,y:255};
+  const lureEnd=n>=3?4.6:5.8;
+  const cp=path(t,[[0,230,370],[lureEnd,spot.x,spot.y]]);
+  const c=col(cp.x,cp.y,Math.atan2(spot.y-370,spot.x-230)*(1-seg(t,lureEnd,lureEnd+1.2))); st.c=c;
+  if(n===1&&t>5.8) c.x+=Math.min(t-5.8,1.6)*32;
+  const fallT=n===1?7.6:6.2, fall=ease(seg(t,fallT,fallT+.7)), landed=t>fallT+.7, full=n>=2;
+  st.props.push({k:'column',x:colm.x,y:colm.y,fall,ang:Math.atan2(spot.y-colm.y,spot.x-colm.x)});
+  if(n===4) st.props.push({k:'puddle',x:spot.x,y:spot.y+12,r:100,lit:t>7.4&&t<11.6,t});
+  if(landed&&t<11.4){ c.stun=true; c.kneel=full?.6:.25; }
+  let dmg=landed?(full?.3:.12):0;
+  if(landed&&t<fallT+1.2) st.fx.push({k:'snap',x:L(colm.x,spot.x,.7),y:L(colm.y,spot.y,.7),p:seg(t,fallT+.7,fallT+1.2),big:true});
+  {
+    const pts=n===1?[[0,330,460],[2.5,470,340],[5,610,300],[6.4,690,170],[7.4,690,170],[8.8,640,350],[11.5,640,350]]
+                   :[[0,330,460],[2.5,470,340],[5,610,305],[6.6,680,370],[7.8,spot.x+40,spot.y+92],[11.4,spot.x+40,spot.y+92]];
+    const p=path(t,pts); st.players.push({x:p.x,y:p.y,i:0});
+    horn(st,0,p,t,1.6,5.6);
+    if(n===1) arrow(st,p,{x:colm.x+18,y:colm.y+8},t,7.2,.4);
+    const tgt=cpt(c,0,52); if(landed){ hits(st,tgt,t,fallT+1.3,11.2); dmg+=act(t,fallT+1.3,11.2)*.03; }
+  }
+  if(n>=2){ const p=path(t,[[0,770,50],[3,700,90],[11.5,700,90]]); st.players.push({x:p.x,y:p.y,i:1}); arrow(st,p,{x:colm.x+18,y:colm.y},t,fallT-.4,.4); }
+  if(n>=3){
+    const fr=cpt(c,58,54);
+    const p=path(t,[[0,770,480],[2.4,fr.x+110,fr.y+60],[3,fr.x+130,fr.y+40],[4.6,spot.x+190,spot.y+40],[11.5,spot.x+190,spot.y+40]]);
+    st.players.push({x:p.x,y:p.y,i:2}); arrow(st,p,fr,t,2.6,.3);
+    if(t>2.9&&t<6) st.ropes.push({a:fr,b:p,tension:t>3.4?.85:.3});
+  }
+  if(n===4){
+    const p=path(t,[[0,40,480],[4,370,430],[11.5,370,430]]); st.players.push({x:p.x,y:p.y,i:3});
+    arrow(st,p,{x:spot.x-20,y:spot.y+40},t,6.9,.5,{fire:true});
+    if(t>7.4) dmg+=act(t,7.4,11.5)*.035;
+  }
+  c.life=1-dmg; return st;
+}
+
+/* ---------- 4. Le chevaucher et le diriger ---------- */
+function steer(t,n){
+  const st=S(); st.props.push({k:'wall',x:712,y:130,w:40,h:260});
+  const wob=n===1?1:n===2?.8:n===3?.45:0;
+  const arrive=n===1?9.2:n===2?9:n===3?8.4:8;
+  const env=seg(t,4.6,5.4)*(1-seg(t,arrive-.6,arrive));
+  const x=L(300,646,ease(seg(t,4.6,arrive)));
+  const y=260+wob*48*Math.sin(t*2.2)*env;
+  const c=col(x,y,wob*.38*Math.sin(t*2.2+1)*env); st.c=c;
+  const crash=t>arrive;
+  if(crash&&t<11.6){ c.stun=true; c.kneel=.5; }
+  if(crash&&t<arrive+.6) st.fx.push({k:'snap',x:704,y:c.y,p:seg(t,arrive,arrive+.6),big:true});
+  let dmg=crash?.35:0;
+  {
+    const bl=cpt(c,-58,54), head=cpt(c,98,0);
+    const p=t<4.6?path(t,[[0,170,470],[1.6,bl.x-10,bl.y+44],[2.4,bl.x,bl.y+12],[3.4,c.x-30,c.y],[4.4,head.x,head.y]]):head;
+    st.players.push({x:p.x,y:p.y,i:0,on:t>2.3});
+  }
+  if(n>=2){
+    const br=cpt(c,-58,-54), bk=cpt(c,-22,0);
+    const p=t<4.8?path(t,[[0,170,50],[2,br.x-10,br.y-44],[2.8,br.x,br.y-12],[3.8,bk.x,bk.y]]):bk;
+    st.players.push({x:p.x,y:p.y,i:1,on:t>2.7}); hits(st,cpt(c,-22,-22),t,4.8,11.4,2.8); dmg+=act(t,4.8,11.4)*.05;
+  }
+  if(n>=3){ const p=path(t,[[0,770,490],[3,672,440],[11.5,672,440]]); st.players.push({x:p.x,y:p.y,i:2}); horn(st,2,p,t,4.4,arrive); }
+  if(n===4){
+    const rl=cpt(c,-58,54);
+    const p=path(t,[[0,40,490],[3.4,rl.x-80,rl.y+80],[4.6,rl.x-60,rl.y+92],[arrive,x-170,c.y+110],[11.5,x-170,c.y+110]]);
+    st.players.push({x:p.x,y:p.y,i:3}); arrow(st,p,rl,t,3.6,.3);
+    if(t>3.9&&t<arrive+.2) st.ropes.push({a:rl,b:p,tension:.78});
+  }
+  c.life=1-dmg; return st;
+}
+
+/* ---------- 5. Attirer son attention ---------- */
+function attention(t,n){
+  const st=S(); const c=col(400,265,0); st.c=c;
+  const base=PI*.72, N={x:400,y:62}, Sd={x:400,y:470};
+  const horns=[];
+  if(n===1) horns.push({i:0,p:N,a:1.2,b:3.2});
+  if(n===2) horns.push({i:1,p:N,a:1.2,b:11.2});
+  if(n===3){ horns.push({i:1,p:N,a:1.2,b:5.4}); horns.push({i:2,p:Sd,a:5.4,b:11.2}); }
+  if(n===4){ horns.push({i:2,p:N,a:1.2,b:5.4}); horns.push({i:3,p:Sd,a:5.4,b:11.2}); }
+  let ang=base;
+  horns.forEach(h=>{ if(t>h.a){ const to=Math.atan2(h.p.y-c.y,h.p.x-c.x); ang=angLerp(ang,to,ease(seg(t,h.a,h.a+1.1))); } });
+  if(n===1&&t>7) ang=angLerp(ang,base,ease(seg(t,7,8.6)));
+  c.a=ang;
+  horns.forEach(h=>{
+    const start=h.p.y<200?{x:h.p.x-260,y:20}:{x:h.p.x+260,y:505};
+    if(!(n===1)){ const p=path(t,[[0,start.x,start.y],[h.a-.2,h.p.x,h.p.y],[11.6,h.p.x,h.p.y]]); st.players.push({x:p.x,y:p.y,i:h.i}); }
+    horn(st,h.i,h.p,t,h.a,h.b);
+  });
+  let dmg=0;
+  if(n===1){
+    const tailL=cpt(c,-58,54);
+    const p=path(t,[[0,150,40],[1.1,N.x,N.y],[3.2,N.x,N.y],[4.6,640,200],[6,tailL.x+40,tailL.y+60],[6.6,tailL.x,tailL.y+12],[7.4,c.x-20,c.y],[11.5,c.x-20,c.y]]);
+    st.players.push({x:p.x,y:p.y,i:0,on:t>6.5}); hits(st,cpt(c,-20,0),t,7.6,11.4,2.6); dmg+=act(t,7.6,11.4)*.06;
+  } else {
+    const climbers=n===4?[[0,-1],[1,1]]:[[0,1]];
+    climbers.forEach(([i,side])=>{
+      const from = n===3 ? {x:110,y:260} : (side>0?{x:150,y:500}:{x:650,y:30});
+      const leg = n===3 ? cpt(c,-58,0) : cpt(c,-58,side*54);
+      const a = n===3?3.4:2.8;
+      const p=t<a+1.4?path(t,[[0,from.x,from.y],[a,leg.x+(n===3?-40:0),leg.y+(n===3?0:side*44)],[a+.8,leg.x,leg.y],[a+1.4,c.x-10,c.y+side*10]]):cpt(c,-10,side*10);
+      st.players.push({x:p.x,y:p.y,i,on:t>a+.7});
+      hits(st,cpt(c,-10,side*18),t,a+1.6,11.4,2.6); dmg+=act(t,a+1.6,11.4)*.06;
+    });
+  }
+  c.life=1-dmg; return st;
+}
+
+/* ---------- 6. Les engins de siège ---------- */
+function bolt(st,B,c,t,s){ if(t>s&&t<s+.5) st.fx.push({k:'arrow',x1:B.x,y1:B.y,x2:c.x,y2:c.y,p:seg(t,s,s+.5),big:true}); if(t>s+.5&&t<s+.95) st.fx.push({k:'hit',x:c.x,y:c.y,p:seg(t,s+.5,s+.95),big:true}); }
+function shuttle(t,depot,B){
+  const u=((t-.2)%3+3)%3, a={x:B.x+12,y:B.y+42}, d={x:depot.x+30,y:depot.y-12};
+  if(u<1.2) return {x:L(a.x,d.x,ease(u/1.2)),y:L(a.y,d.y,ease(u/1.2)),carry:false};
+  if(u<1.5) return {x:d.x,y:d.y,carry:true};
+  if(u<2.7) return {x:L(d.x,a.x,ease((u-1.5)/1.2)),y:L(d.y,a.y,ease((u-1.5)/1.2)),carry:true};
+  return {x:a.x,y:a.y,carry:false};
+}
+function siege(t,n){
+  const st=S(), B1={x:110,y:260}, B2={x:690,y:260}, D1={x:110,y:470}, D2={x:690,y:470};
+  st.props.push({k:'ballista',x:B1.x,y:B1.y,a:0},{k:'depot',x:D1.x,y:D1.y});
+  if(n===4) st.props.push({k:'ballista',x:B2.x,y:B2.y,a:PI},{k:'depot',x:D2.x,y:D2.y});
+  const drift=n>=3?0:1;
+  const c=col(400+drift*55*Math.sin(t*.5),262+drift*80*Math.sin(t*.7),PI*.5+.6*Math.sin(t*.5)*drift); st.c=c;
+  if(n>=3) c.a=angLerp(PI*.5,-PI*.5,ease(seg(t,.8,2)));
+  const shots1=n===1?[1.6,7.6]:[1.6,4.6,7.6,10.6], shots2=n===4?[3.1,7.1]:[];
+  let dmg=0;
+  shots1.forEach(s=>{ bolt(st,B1,c,t,s); if(t>s+.5) dmg+=.1; });
+  shots2.forEach(s=>{ bolt(st,B2,c,t,s); if(t>s+.5) dmg+=.1; });
+  if(n===1){
+    const p=path(t,[[0,B1.x-26,B1.y],[2.2,B1.x-26,B1.y],[3.6,D1.x+30,D1.y-12],[4.4,D1.x+30,D1.y-12],[6,B1.x-26,B1.y],[11.5,B1.x-26,B1.y]]);
+    st.players.push({x:p.x,y:p.y,i:0}); if(t>4.4&&t<6.4) st.props.push({k:'carry',x:p.x,y:p.y});
+  } else {
+    st.players.push({x:B1.x-26,y:B1.y,i:0});
+    const p=shuttle(t,D1,B1); st.players.push({x:p.x,y:p.y,i:1}); if(p.carry) st.props.push({k:'carry',x:p.x,y:p.y});
+  }
+  if(n>=3){ const p={x:400,y:62}; st.players.push({x:p.x,y:p.y,i:2}); horn(st,2,p,t,.8,11.5); }
+  if(n===4){
+    const p=path(t,[[0,B2.x+26,B2.y],[3.6,B2.x+26,B2.y],[4.8,D2.x-30,D2.y-12],[5.4,D2.x-30,D2.y-12],[6.6,B2.x+26,B2.y],[11.5,B2.x+26,B2.y]]);
+    st.players.push({x:p.x,y:p.y,i:3}); if(t>5.4&&t<6.8) st.props.push({k:'carry',x:p.x,y:p.y});
+  }
+  c.life=1-dmg; return st;
+}
+
+/* ---------- 7. La corde-grappin ---------- */
+function reach(a,b,shakes){let r=b; shakes.forEach(([s,e])=>{ if(s<r&&e>a) r+=Math.min(e,r)-Math.max(s,a); }); return r;}
+function effT(t,a,shakes){let o=0; shakes.forEach(([s,e])=>{ o+=Math.max(0,Math.min(e,t)-Math.max(s,a)); }); return t-o;}
+function grapple(t,n){
+  const st=S(); const c=col(430,240,PI*.04); st.c=c;
+  const shakes=n===4?[]:[[4,5],[7.5,8.5]];
+  if(shakes.some(([a,b])=>t>a&&t<b)) c.shake=1;
+  const anchor=cpt(c,-30,40);
+  const ground=n>=2?path(t,[[0,130,505],[1.6,250,470],[11.5,250,470]]):{x:300,y:470};
+  const p1=path(t,[[0,180,505],[1.4,300,455]]);
+  arrow(st,p1,anchor,t,1.4,.35);
+  if(t>1.75) st.ropes.push({a:anchor,b:ground,tension:n>=2?.88:.25,sway:n===1});
+  let dmg=0;
+  const climbers=n===1?[[0,2,8]]:n===2?[[0,2,4.6]]:[[0,2,4.6],[2,4.4,7]];
+  climbers.forEach(([i,a,b])=>{
+    const r=reach(a,b,shakes), prog=seg(effT(t,a,shakes),a,b);
+    const onTop=cpt(c,i===0?48:-36,i===0?0:-12);
+    let pos;
+    if(t<a) pos=i===0?p1:path(t,[[0,640,505],[a-.3,ground.x+24,ground.y-6]]);
+    else if(t<r) pos={x:L(ground.x,anchor.x,ease(prog)),y:L(ground.y,anchor.y,ease(prog))};
+    else pos=path(t,[[r,anchor.x,anchor.y],[r+.6,onTop.x,onTop.y]]);
+    st.players.push({x:pos.x,y:pos.y,i,on:t>=a});
+    hits(st,cpt(c,i===0?84:-20,0),t,r+.7,11.5); dmg+=act(t,r+.7,11.5)*.05;
+  });
+  if(n>=2) st.players.push({x:ground.x-16,y:ground.y+10,i:1});
+  if(n===4){ const p=path(t,[[0,770,50],[2,640,80],[11.5,640,80]]); st.players.push({x:p.x,y:p.y,i:3}); arrowsLoop(st,p,cpt(c,98,0),t,2.4,11,1.1); }
+  c.life=1-dmg; return st;
+}
+
+/* ---------- 8. Le faire tomber à genoux ---------- */
+function knees(t,n){
+  const st=S(); const c=col(L(250,420,ease(seg(t,0,3))),262,0); st.c=c;
+  const cutters=n>=3?[0,2]:[0], front=[[58,54],[58,-54]], cutEnd=5, kneelEnd=n>=3?10.6:8.4;
+  c.straps=front.map((l,k)=>({lx:l[0],ly:l[1],cut:k<cutters.length&&t>cutEnd}));
+  c.kneel=ease(seg(t,cutEnd,cutEnd+.6))*(n>=3?1:.75)*(1-ease(seg(t,kneelEnd,kneelEnd+.7)));
+  let dmg=0;
+  cutters.forEach((i,k)=>{
+    const l=front[k], leg=cpt(c,l[0],l[1]), side=l[1]>0?1:-1;
+    if(n===1&&t>5.2){
+      const q=path(t,[[5.2,leg.x,leg.y+side*16],[6.2,c.x+20,c.y],[6.8,c.x+80,c.y],[11.5,c.x+80,c.y]]);
+      st.players.push({x:q.x,y:q.y,i,on:true}); hits(st,cpt(c,98,0),t,6.9,kneelEnd+.4,3); dmg+=act(t,6.9,kneelEnd+.4)*.1;
+    } else {
+      const p=t<3?path(t,[[0,170,side>0?490:30],[3,leg.x+10,leg.y+side*42]]):{x:leg.x+4,y:leg.y+side*16};
+      st.players.push({x:p.x,y:p.y,i,on:t>3}); hits(st,leg,t,3.1,cutEnd,3);
+    }
+  });
+  const climbers=n===2||n===3?[1]:n===4?[1,3]:[];
+  climbers.forEach((i,k)=>{
+    const side=k===0?1:-1, bl=cpt(c,-58,side*54);
+    const p=t<cutEnd?path(t,[[0,110,side>0?480:40],[4,bl.x-52,bl.y+side*52]])
+                    :path(t,[[cutEnd,bl.x-52,bl.y+side*52],[cutEnd+.8,bl.x,bl.y],[cutEnd+1.4,c.x+20,c.y+side*14],[cutEnd+1.9,c.x+82,c.y+side*14],[11.5,c.x+82,c.y+side*14]]);
+    st.players.push({x:p.x,y:p.y,i,on:t>cutEnd+.7});
+    hits(st,cpt(c,98,side*8),t,cutEnd+2,kneelEnd+.4,3); dmg+=act(t,cutEnd+2,kneelEnd+.4)*.1;
+  });
+  c.life=1-dmg; return st;
+}
+
+/* ---------- Textes ---------- */
+const MECH=[
+ {id:'clouer',name:'Le clouer au sol',tag:'corde + piquets',what:"Chaque cavalier plante sa flèche-corde dans une jambe, puis attache l'autre bout à un piquet du sol. Plus il y a de cordes, plus le colosse reste immobile.",scene:pin,
+  steps:n=>{const r=n===1?1:n-1;const a=[[0,"Le colosse entre dans l'arène."],[2.4,n===1?"Tu tires la flèche-corde dans sa jambe.":`${r} cavalier${r>1?'s':''} tire${r>1?'nt':''} la flèche-corde dans ses jambes.`],[4.2,r===1?"La corde est attachée à un piquet du sol.":"Chaque corde est attachée à un piquet du sol."]];
+   if(n===1)a.push([5.3,"Tu reviens frapper avant que la corde cède."],[6.8,"La corde casse : il se libère."]);
+   if(n===2)a.push([4.9,"J2 frappe pendant qu'il se débat."],[7.6,"Une seule corde casse vite : il se libère."]);
+   if(n===3)a.push([4.9,"Deux cordes le tiennent : J3 frappe longtemps."]);
+   if(n===4)a.push([5.2,"Trois cordes : il tombe à genoux."],[6.3,"J4 a grimpé jusqu'à la nuque et frappe."]);
+   a.push([10.4,"Les cordes lâchent, le colosse repart."]);return a;},
+  roles:n=>n===1?[[0,"Plante la corde, puis revient frapper avant qu'elle casse"]]:n===2?[[0,"Corde et piquet"],[1,"Frappe tant que la corde tient"]]:n===3?[[0,"Corde et piquet"],[1,"Corde et piquet"],[2,"Frappe pendant qu'il est tenu"]]:[[0,"Corde et piquet"],[1,"Corde et piquet"],[2,"Corde et piquet"],[3,"Grimpe et frappe la nuque"]],
+  coop:n=>["Seul, la fenêtre est courte : planter la corde puis revenir frapper avant qu'elle casse. Jouable, mais tendu.","À deux, l'un tient, l'autre frappe. Une corde seule cède vite : il faut frapper fort et tôt.","À trois, deux cordes le tiennent jusqu'au bout. La fenêtre de frappe est longue.","À quatre, trois cordes le font tomber à genoux : un joueur peut monter jusqu'à la nuque. C'est la récompense de la coopération."][n-1]},
+ {id:'armure',name:'Arracher son armure',tag:'corde + galop',what:"La flèche-corde accroche une plaque de pierre sur son flanc. On galope dans l'autre sens pour l'arracher : dessous, un point faible.",scene:armor,
+  steps:n=>{const a=[[0,"Une plaque de pierre protège son flanc."]];
+   if(n===1)a.push([2,"Tu accroches la plaque avec la flèche-corde."],[2.4,"Tu galopes pour tirer : seul, la plaque tient."],[6,"Deuxième essai, avec plus d'élan."],[8.6,"La plaque cède : le point faible est à nu."],[9.5,"Tu tires dans le point faible."]);
+   else{a.push([2,"J1 et J2 accrochent la même plaque."],[2.4,"Ils galopent ensemble : la tension monte vite."],[5.4,"La plaque cède du premier coup."]);
+    if(n===2)a.push([6.3,"Les deux tirent dans le point faible."]);
+    if(n===3)a.push([6,"J3 tire dans le point faible pendant que J1 et J2 reviennent."]);
+    if(n===4)a.push([5,"J3 sonne du cor : le colosse se tourne vers lui."],[6.7,"J4 frappe le point faible à l'épée."]);}
+   return a;},
+  roles:n=>n===1?[[0,"Accroche, tire deux fois, puis vise le point faible"]]:n===2?[[0,"Tire sur la plaque"],[1,"Tire sur la plaque"]]:n===3?[[0,"Tire sur la plaque"],[1,"Tire sur la plaque"],[2,"Archer sur le point faible"]]:[[0,"Tire sur la plaque"],[1,"Tire sur la plaque"],[2,"Sonne du cor pour tourner le colosse"],[3,"Frappe le point faible"]],
+  coop:n=>["Seul, il faut deux essais : la plaque est trop lourde pour un cheval.","À deux, les deux chevaux tirent la même corde : la plaque cède du premier coup.","À trois, un archer attend le point faible pendant que les autres reviennent.","À quatre, le cor tourne le colosse pour présenter le point faible à l'épée."][n-1]},
+ {id:'decor',name:'Le décor comme arme',tag:'colonne + naphte',what:"On attire le colosse sous une colonne, puis on l'abat d'une flèche. À quatre, une flaque de naphte s'enflamme sous lui.",scene:decor,
+  steps:n=>{const a=[[0,"Une colonne se dresse dans l'arène."],[1.6,"J1 sonne du cor : le colosse le suit."]];
+   if(n>=3)a.push([2.6,"J3 accroche une jambe et le tire sous la colonne."]);
+   if(n===1)a.push([6.4,"Tu cours vers la colonne pour la viser."],[7.6,"Tir trop tard : il est déjà passé, la colonne ne touche que l'arrière."]);
+   else a.push([5.8,"J2 tire sur la base de la colonne."],[6.9,"La colonne tombe sur son dos : sonné."]);
+   if(n===4)a.push([6.9,"J4 tire une flèche enflammée dans le naphte."]);
+   a.push([n===1?8.8:7.6,"On frappe pendant qu'il est sonné."]);return a;},
+  roles:n=>n===1?[[0,"Attire, puis tire seul sur la colonne"]]:n===2?[[0,"Attire au cor"],[1,"Tire sur la colonne"]]:n===3?[[0,"Attire au cor"],[1,"Tire sur la colonne"],[2,"Le traîne sous la colonne à la corde"]]:[[0,"Attire au cor"],[1,"Tire sur la colonne"],[2,"Le traîne sous la colonne"],[3,"Enflamme le naphte"]],
+  coop:n=>["Seul, attirer puis tirer demande un timing serré : souvent, la colonne ne fait qu'effleurer.","À deux, l'un attire et l'autre tire au bon moment : le coup est plein.","À trois, la corde le place exactement sous la colonne, et plus vite.","À quatre, le naphte enflammé ajoute des dégâts pendant qu'il est sonné."][n-1]},
+ {id:'diriger',name:'Le chevaucher et le diriger',tag:'escalade + mur',what:"Arrivé à sa tête, on le dirige comme une monture et on le fait foncer dans un mur.",scene:steer,
+  steps:n=>{const a=[[0,"Tu approches à cheval."],[2.3,"Tu t'accroches à une patte et tu grimpes."],[4.4,"Arrivé à la tête, tu le diriges vers le mur."]];
+   if(n===1)a.push([5,"Il se débat : la course zigzague."]);
+   if(n>=2)a.push([4.8,"J2 frappe son dos pendant la course."]);
+   if(n===3)a.push([5,"Le cor de J3 au pied du mur le fait foncer plus droit."]);
+   if(n===4)a.push([5,"La corde de J4 sur sa patte arrière l'empêche de dévier."]);
+   a.push([n===1?9.2:n===2?9:n===3?8.4:8,"Il percute le mur : sonné."]);return a;},
+  roles:n=>n===1?[[0,"Grimpe jusqu'à la tête et dirige"]]:n===2?[[0,"Dirige depuis la tête"],[1,"Frappe le dos pendant la course"]]:n===3?[[0,"Dirige"],[1,"Frappe le dos"],[2,"Sonne du cor au pied du mur"]]:[[0,"Dirige"],[1,"Frappe le dos"],[2,"Sonne du cor"],[3,"Tient une corde pour qu'il reste droit"]],
+  coop:n=>["Seul, il se débat beaucoup : la course est longue et zigzague.","À deux, l'un dirige pendant que l'autre frappe : la course fait des dégâts.","À trois, le cor guide le colosse : il arrive plus vite.","À quatre, la corde le garde droit : choc net et rapide."][n-1]},
+ {id:'attention',name:'Attirer son attention',tag:'cor + escalade',what:"Le cor attire son regard. Pendant qu'il regarde ailleurs, les autres grimpent dans son dos.",scene:attention,
+  steps:n=>{const a=[[0,"Le colosse fait face aux cavaliers."]];
+   if(n===1)a.push([1.2,"Tu sonnes du cor au nord : il se retourne."],[3.2,"Tu fais le tour au galop pour passer derrière."],[6.5,"Tu t'accroches avant qu'il se retourne."],[7.6,"Tu frappes son dos."]);
+   if(n===2)a.push([1.2,"J2 sonne du cor : il regarde vers lui."],[2.8,"J1 grimpe par derrière, sans être vu."],[4.4,"J1 frappe, J2 garde son attention."]);
+   if(n===3)a.push([1.2,"J2 sonne du cor au nord."],[3.4,"J1 grimpe par le côté."],[5.4,"J3 prend le relais au sud : il se retourne encore."]);
+   if(n===4)a.push([1.2,"J3 sonne du cor au nord."],[2.8,"J1 et J2 grimpent des deux côtés."],[5.4,"J4 prend le relais au sud."],[4.4,"J1 et J2 frappent ensemble."]);
+   return a.sort((x,y)=>x[0]-y[0]);},
+  roles:n=>n===1?[[0,"Sonne du cor, fait le tour et grimpe"]]:n===2?[[0,"Grimpe et frappe"],[1,"Sonne du cor"]]:n===3?[[0,"Grimpe et frappe"],[1,"Cor au nord"],[2,"Cor au sud, en relais"]]:[[0,"Grimpe et frappe"],[1,"Grimpe et frappe"],[2,"Cor au nord"],[3,"Cor au sud, en relais"]],
+  coop:n=>["Seul, il faut sonner puis faire tout le tour avant qu'il se retourne : c'est une course.","À deux, un joueur garde son attention en continu : l'autre grimpe tranquillement.","À trois, deux cors en relais le font tourner en rond : le grimpeur n'est jamais vu.","À quatre, deux grimpeurs frappent ensemble pendant que deux cors le tiennent occupé."][n-1]},
+ {id:'siege',name:'Les engins de siège',tag:'baliste + munitions',what:"Une baliste tire de gros carreaux. Il faut aller chercher les munitions au dépôt.",scene:siege,
+  steps:n=>{const a=[[0,"Une baliste est installée au bord de l'arène."],[1.6,"Premier carreau : touché."]];
+   if(n===1)a.push([2.2,"Tu galopes au dépôt chercher un carreau."],[6,"Tu recharges."],[7.6,"Deuxième tir : seulement deux en 12 s."]);
+   else a.push([2,"J2 fait la navette avec le dépôt : un tir toutes les 3 s."]);
+   if(n>=3)a.push([.8,"J3 sonne du cor : le colosse reste immobile, dos tourné."]);
+   if(n===4)a.push([3.1,"Une deuxième baliste tire depuis l'est."]);
+   return a.sort((x,y)=>x[0]-y[0]);},
+  roles:n=>n===1?[[0,"Vise, puis va chercher les carreaux"]]:n===2?[[0,"Vise et tire"],[1,"Apporte les carreaux"]]:n===3?[[0,"Vise et tire"],[1,"Apporte les carreaux"],[2,"Attire le colosse au cor"]]:[[0,"Baliste ouest"],[1,"Apporte les carreaux"],[2,"Attire au cor"],[3,"Baliste est, recharge seul"]],
+  coop:n=>["Seul, chaque tir coûte un aller-retour au dépôt : deux tirs en 12 s.","À deux, la navette double la cadence : quatre tirs.","À trois, le cor le garde immobile : aucun tir ne se perd.","À quatre, deux balistes croisent leurs tirs."][n-1]},
+ {id:'grappin',name:'La corde-grappin',tag:'flèche-corde + escalade',what:"Une flèche-corde plantée dans son dos sert d'échelle : plus besoin d'attendre qu'il pose un pied.",scene:grapple,
+  steps:n=>{const a=[[0,"Le colosse avance."],[1.4,"J1 plante une flèche-corde dans son dos."]];
+   if(n===1)a.push([2,"Tu grimpes à la corde : elle balance."],[4,"Il se secoue : tu t'agrippes."],[7.5,"Nouvelle secousse."],[10,"Tu arrives enfin sur son dos."]);
+   if(n===2)a.push([2,"J2 tient la corde tendue : J1 monte vite."],[4,"Une secousse le ralentit un peu."]);
+   if(n===3)a.push([2,"J2 tient la corde : J1 puis J3 montent."],[8.6,"Les deux grimpeurs frappent son dos."]);
+   if(n===4)a.push([2,"J2 tient la corde : J1 puis J3 montent."],[2.4,"Les flèches de J4 sur sa tête l'empêchent de se secouer."]);
+   return a.sort((x,y)=>x[0]-y[0]);},
+  roles:n=>n===1?[[0,"Plante la corde et grimpe seul"]]:n===2?[[0,"Grimpe"],[1,"Tient la corde tendue"]]:n===3?[[0,"Grimpe"],[1,"Tient la corde"],[2,"Grimpe ensuite"]]:[[0,"Grimpe"],[1,"Tient la corde"],[2,"Grimpe ensuite"],[3,"Tire sur sa tête pour l'empêcher de se secouer"]],
+  coop:n=>["Seul, la corde balance et chaque secousse t'arrête : la montée est longue.","À deux, une corde tenue tendue se grimpe deux fois plus vite.","À trois, deux grimpeurs utilisent la même corde.","À quatre, l'archer empêche les secousses : la montée ne s'arrête jamais."][n-1]},
+ {id:'genoux',name:'Le faire tomber à genoux',tag:'sangles + escalade',what:"On tranche les sangles de ses pattes avant : il s'agenouille et son dos devient accessible.",scene:knees,
+  steps:n=>{const a=[[0,"Le colosse avance, les pattes avant sanglées."],[3,n>=3?"J1 et J3 s'accrochent chacun à une patte avant.":"J1 s'accroche à une patte avant."],[3.1,"Tranche les sangles à l'épée."],[5,n>=3?"Les deux pattes cèdent : il tombe à genoux, longtemps.":"Une patte cède : il s'agenouille un moment."]];
+   if(n===1)a.push([5.2,"Tu grimpes pendant qu'il est à genoux."],[6.9,"Tu frappes la nuque."]);
+   if(n===2||n===3)a.push([5.7,"J2 grimpe par l'arrière et frappe la nuque."]);
+   if(n===4)a.push([5.7,"J2 et J4 grimpent des deux côtés et frappent."]);
+   a.push([n>=3?10.6:8.4,"Il se relève."]);return a;},
+  roles:n=>n===1?[[0,"Tranche, puis grimpe"]]:n===2?[[0,"Tranche les sangles"],[1,"Grimpe et frappe"]]:n===3?[[0,"Tranche la patte droite"],[1,"Grimpe et frappe"],[2,"Tranche la patte gauche"]]:[[0,"Tranche la patte droite"],[1,"Grimpe et frappe"],[2,"Tranche la patte gauche"],[3,"Grimpe et frappe"]],
+  coop:n=>["Seul, il faut trancher puis grimper dans le même temps à genoux : peu de temps pour frapper.","À deux, le grimpeur attend en position : il monte dès qu'il s'agenouille.","À trois, deux pattes tranchées : il reste à genoux bien plus longtemps.","À quatre, deux grimpeurs profitent de ce long moment à genoux."][n-1]},
+];
+
+/* ---------- Dessin ---------- */
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+let P={};
+function readPalette(){const cs=getComputedStyle(document.documentElement);const g=n=>cs.getPropertyValue('--'+n).trim();
+  P={ground:g('ground'),grid:g('grid'),stone:g('stone'),stoneDk:g('stone-dk'),slab:g('slab'),plate:g('plate'),shadow:g('shadow'),accent:g('accent'),blood:g('blood'),rope:g('rope'),gold:g('gold'),naphte:g('naphte'),ink:g('ink'),muted:g('muted'),bg:g('bg'),p:[g('p1'),g('p2'),g('p3'),g('p4')],font:g('body'),mono:g('mono')};}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function ground(){ctx.fillStyle=P.ground;ctx.fillRect(0,0,W,H);ctx.strokeStyle=P.grid;ctx.lineWidth=1;ctx.beginPath();for(let x=40;x<W;x+=40){ctx.moveTo(x,0);ctx.lineTo(x,H);}for(let y=40;y<H;y+=40){ctx.moveTo(0,y);ctx.lineTo(W,y);}ctx.stroke();}
+function drawProp(p,t){
+  ctx.save();
+  if(p.k==='stake'){ctx.fillStyle=P.stoneDk;ctx.beginPath();ctx.arc(p.x,p.y,7,0,2*PI);ctx.fill();ctx.strokeStyle=P.ground;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x-4,p.y);ctx.lineTo(p.x+4,p.y);ctx.moveTo(p.x,p.y-4);ctx.lineTo(p.x,p.y+4);ctx.stroke();}
+  else if(p.k==='column'){
+    if(p.fall<=0){ctx.fillStyle=P.shadow;ctx.beginPath();ctx.ellipse(p.x+14,p.y+18,26,20,0,0,2*PI);ctx.fill();ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,22,0,2*PI);ctx.fill();ctx.stroke();ctx.beginPath();ctx.arc(p.x,p.y,12,0,2*PI);ctx.stroke();}
+    else{ctx.translate(p.x,p.y);ctx.rotate(p.ang);const len=26+150*p.fall;ctx.fillStyle=P.shadow;rr(-10,-6,len+16,40,8);ctx.fill();ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;rr(-18,-17,len,34,8);ctx.fill();ctx.stroke();for(let k=1;k<4;k++){const x=-18+len*k/4;ctx.beginPath();ctx.moveTo(x,-17);ctx.lineTo(x,17);ctx.stroke();}}
+  }
+  else if(p.k==='wall'){ctx.fillStyle=P.stoneDk;ctx.fillRect(p.x,p.y,p.w,p.h);ctx.strokeStyle=P.slab;ctx.lineWidth=1;for(let y=p.y;y<p.y+p.h;y+=20){ctx.beginPath();ctx.moveTo(p.x,y);ctx.lineTo(p.x+p.w,y);ctx.stroke();const o=((y-p.y)/20)%2?10:20;ctx.beginPath();ctx.moveTo(p.x+o,y);ctx.lineTo(p.x+o,y+20);ctx.stroke();}}
+  else if(p.k==='ballista'){ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.strokeStyle=P.rope;ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-18,0);ctx.lineTo(22,0);ctx.stroke();ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(10,-24);ctx.quadraticCurveTo(22,0,10,24);ctx.stroke();ctx.strokeStyle=P.ink;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(10,-24);ctx.lineTo(-10,0);ctx.lineTo(10,24);ctx.stroke();}
+  else if(p.k==='depot'){ctx.fillStyle=P.rope;for(let k=0;k<3;k++){rr(p.x-22+k*15,p.y-8,12,16,2);ctx.fill();}}
+  else if(p.k==='carry'){ctx.strokeStyle=P.rope;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(p.x-12,p.y-15);ctx.lineTo(p.x+12,p.y-15);ctx.stroke();}
+  else if(p.k==='puddle'){ctx.fillStyle=P.naphte;ctx.beginPath();ctx.ellipse(p.x,p.y,p.r,p.r*.62,0,0,2*PI);ctx.fill();
+    if(p.lit){for(let k=0;k<14;k++){const a=k/14*2*PI, rr2=p.r*(.3+.6*((k*37)%10)/10), fx=p.x+Math.cos(a)*rr2, fy=p.y+Math.sin(a)*rr2*.62, s=7+5*Math.sin(p.t*9+k*1.7);ctx.fillStyle=k%2?P.accent:P.gold;ctx.globalAlpha=.75;ctx.beginPath();ctx.arc(fx,fy,Math.max(2,s),0,2*PI);ctx.fill();}ctx.globalAlpha=1;}}
+  else if(p.k==='plateFly'){ctx.globalAlpha=p.al;ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillStyle=P.plate;ctx.strokeStyle=P.gold;ctx.lineWidth=2;rr(-36,-10,72,20,3);ctx.fill();ctx.stroke();}
+  ctx.restore();
+}
+function drawColossus(c,t){
+  const jit=c.shake?Math.sin(t*38)*3*c.shake:0, k=1-.12*c.kneel;
+  ctx.save();ctx.translate(c.x+jit,c.y+jit*.5);ctx.rotate(c.a);
+  ctx.fillStyle=P.shadow;ctx.beginPath();ctx.ellipse(14,18,112*k,72*k,0,0,2*PI);ctx.fill();
+  const lg=26*(1-.35*c.kneel);
+  [[58,54],[58,-54],[-58,54],[-58,-54]].forEach(([x,y])=>{ctx.fillStyle=P.stoneDk;rr(x*k-lg/2,y*k-lg/2,lg,lg,4);ctx.fill();});
+  c.straps.forEach(s=>{const x=s.lx*k,y=s.ly*k;ctx.strokeStyle=P.rope;ctx.lineWidth=3;ctx.lineCap='round';if(!s.cut){ctx.beginPath();ctx.moveTo(x-12,y-6);ctx.lineTo(x+12,y-6);ctx.moveTo(x-12,y+6);ctx.lineTo(x+12,y+6);ctx.stroke();}else{ctx.globalAlpha=.6;ctx.beginPath();ctx.moveTo(x-14,y-6);ctx.lineTo(x-4,y-9);ctx.moveTo(x+4,y+9);ctx.lineTo(x+14,y+6);ctx.stroke();ctx.globalAlpha=1;}});
+  ctx.fillStyle=P.stone;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;rr(-85*k,-48*k,170*k,96*k,10);ctx.fill();ctx.stroke();
+  ctx.fillStyle=P.slab;[-45,0,45].forEach(x=>{rr((x-14)*k,-28*k,28*k,56*k,4);ctx.fill();});
+  ctx.strokeStyle=P.stoneDk;ctx.lineWidth=4;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(96*k,-13*k);ctx.quadraticCurveTo(70*k,-42*k,48*k,-34*k);ctx.moveTo(96*k,13*k);ctx.quadraticCurveTo(70*k,42*k,48*k,34*k);ctx.stroke();
+  ctx.fillStyle=P.stone;ctx.lineWidth=2;rr(82*k,-16*k,34*k,32*k,6);ctx.fill();ctx.stroke();
+  if(c.plate){ctx.fillStyle=P.plate;ctx.strokeStyle=P.gold;ctx.lineWidth=2;rr(-36*k,-62*k,72*k,20*k,3);ctx.fill();ctx.stroke();}
+  if(c.weak){ctx.globalAlpha=.55+.45*Math.sin(t*6);ctx.fillStyle=P.blood;ctx.beginPath();ctx.ellipse(0,-44*k,26*k,9*k,0,0,2*PI);ctx.fill();ctx.globalAlpha=1;}
+  ctx.restore();
+  if(c.stun){const h=cpt(c,99,0);for(let s=0;s<3;s++){const a=t*4+s*2*PI/3;const x=h.x+Math.cos(a)*22,y=h.y-24+Math.sin(a)*7;ctx.fillStyle=P.gold;ctx.beginPath();ctx.arc(x,y,3.2,0,2*PI);ctx.fill();}}
+}
+function drawRope(r,t){
+  ctx.save();ctx.lineCap='round';
+  if(r.broken){const k=clamp(r.bt/.6);if(k>=1){ctx.restore();return;}ctx.globalAlpha=1-k;ctx.strokeStyle=P.accent;ctx.lineWidth=2.4;const m={x:(r.a.x+r.b.x)/2,y:(r.a.y+r.b.y)/2};ctx.beginPath();ctx.moveTo(r.a.x,r.a.y);ctx.lineTo(L(m.x,r.a.x,k),L(m.y,r.a.y,k));ctx.moveTo(r.b.x,r.b.y);ctx.lineTo(L(m.x,r.b.x,k),L(m.y,r.b.y,k));ctx.stroke();ctx.restore();return;}
+  const dx=r.b.x-r.a.x,dy=r.b.y-r.a.y,len=Math.hypot(dx,dy)||1,nx=-dy/len,ny=dx/len;
+  const sag=(1-r.tension)*30+(r.sway?Math.sin(t*3)*16:0);
+  const mx=(r.a.x+r.b.x)/2+nx*sag,my=(r.a.y+r.b.y)/2+ny*sag;
+  const hot=r.tension>.85;ctx.strokeStyle=hot?P.accent:P.rope;ctx.lineWidth=hot?3.4:2.4;
+  ctx.beginPath();ctx.moveTo(r.a.x,r.a.y);ctx.quadraticCurveTo(mx,my,r.b.x,r.b.y);ctx.stroke();ctx.restore();
+}
+function drawPlayer(p){
+  ctx.save();
+  if(p.on){ctx.strokeStyle=P.ink;ctx.lineWidth=1.6;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(p.x,p.y,15,0,2*PI);ctx.stroke();ctx.setLineDash([]);}
+  ctx.fillStyle=P.p[p.i];ctx.strokeStyle=P.bg;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(p.x,p.y,10.5,0,2*PI);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#ffffff';ctx.font='600 12px '+P.font;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(p.i+1),p.x,p.y+.5);
+  ctx.restore();
+}
+function drawFx(f){
+  ctx.save();
+  if(f.k==='ring'){ctx.globalAlpha=Math.max(0,f.al)*.8;ctx.strokeStyle=P.p[f.i];ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,f.r,0,2*PI);ctx.stroke();}
+  else if(f.k==='hit'){const big=f.big?1.6:1;ctx.globalAlpha=1-f.p;ctx.strokeStyle=P.blood;ctx.lineWidth=2.5;ctx.lineCap='round';for(let k=0;k<7;k++){const a=k/7*2*PI+.3,r1=4*big,r2=(8+12*f.p)*big;ctx.beginPath();ctx.moveTo(f.x+Math.cos(a)*r1,f.y+Math.sin(a)*r1);ctx.lineTo(f.x+Math.cos(a)*r2,f.y+Math.sin(a)*r2);ctx.stroke();}}
+  else if(f.k==='arrow'){const x=L(f.x1,f.x2,f.p),y=L(f.y1,f.y2,f.p),a=Math.atan2(f.y2-f.y1,f.x2-f.x1),len=f.big?30:16;ctx.translate(x,y);ctx.rotate(a);ctx.strokeStyle=f.fire?P.accent:P.ink;ctx.lineWidth=f.big?4:2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-len,0);ctx.lineTo(0,0);ctx.stroke();ctx.fillStyle=f.fire?P.gold:P.ink;ctx.beginPath();ctx.moveTo(3,0);ctx.lineTo(-5,-4);ctx.lineTo(-5,4);ctx.closePath();ctx.fill();}
+  else if(f.k==='snap'){const big=f.big?2:1;ctx.globalAlpha=1-f.p;ctx.strokeStyle=P.accent;ctx.lineWidth=3;ctx.lineCap='round';for(let k=0;k<9;k++){const a=k/9*2*PI,r1=6*big,r2=(10+22*f.p)*big;ctx.beginPath();ctx.moveTo(f.x+Math.cos(a)*r1,f.y+Math.sin(a)*r1);ctx.lineTo(f.x+Math.cos(a)*r2,f.y+Math.sin(a)*r2);ctx.stroke();}}
+  else if(f.k==='text'){ctx.fillStyle=P.ink;ctx.font='600 14px '+P.font;ctx.textAlign='center';ctx.fillText(f.s,f.x,f.y);}
+  ctx.restore();
+}
+function hud(life){
+  ctx.save();ctx.fillStyle=P.ink;ctx.font='600 13px '+P.font;ctx.textBaseline='top';ctx.fillText('Vie du colosse',16,14);
+  ctx.fillStyle=P.grid;rr(16,34,200,9,4);ctx.fill();ctx.fillStyle=P.blood;rr(16,34,Math.max(0,200*clamp(life)),9,4);ctx.fill();
+  ctx.fillStyle=P.muted;ctx.font='500 12px '+P.mono;ctx.fillText(Math.round(clamp(life)*100)+' %',224,32);ctx.restore();
+}
+
+/* ---------- État et interface ---------- */
+let mech=0,n=2,t=0,playing=true,last=null,lastStep=-1;
+try{const s=JSON.parse(localStorage.getItem('gestes-colosses')||'{}');if(Number.isInteger(s.m)&&s.m>=0&&s.m<MECH.length)mech=s.m;if([1,2,3,4].includes(s.n))n=s.n;}catch(e){}
+const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+if(reduce){playing=false;t=6;}
+const $=id=>document.getElementById(id);
+function save(){try{localStorage.setItem('gestes-colosses',JSON.stringify({m:mech,n}));}catch(e){}}
+function buildTabs(){$('tabs').innerHTML='';MECH.forEach((m,i)=>{const b=document.createElement('button');b.type='button';b.className='tab';b.id='tab-'+m.id;b.setAttribute('aria-pressed',String(i===mech));b.innerHTML=`${m.name}<small>${m.tag}</small>`;b.onclick=()=>{mech=i;t=0;save();refresh();};$('tabs').appendChild(b);});}
+function buildSeg(){$('seg').innerHTML='';[1,2,3,4].forEach(k=>{const b=document.createElement('button');b.type='button';b.id='n-'+k;b.textContent=k===1?'1 joueur':k+' joueurs';b.setAttribute('aria-pressed',String(k===n));b.onclick=()=>{n=k;t=0;save();refresh();};$('seg').appendChild(b);});}
+function fmt(x){return x.toFixed(1).replace('.',',');}
+function refresh(){
+  buildTabs();buildSeg();const m=MECH[mech];
+  $('m-name').textContent=m.name;$('m-what').textContent=m.what;
+  const st=m.steps(n);$('steps').innerHTML=st.map(([tt,s],k)=>`<li id="st-${k}"><span class="mono">${fmt(tt)} s</span><span>${s}</span></li>`).join('');
+  $('roles').innerHTML=m.roles(n).map(([i,s])=>`<li><span class="dot" style="background:var(--p${i+1})">${i+1}</span><span>${s}</span></li>`).join('');
+  $('coop').textContent=m.coop(n);
+  $('legend').innerHTML=`<span><i class="sw" style="background:var(--rope)"></i>corde</span><span><i class="sw" style="background:var(--accent)"></i>corde tendue au maximum</span><span><i class="sw" style="background:var(--blood)"></i>coup porté</span><span>cercle pointillé : sur le colosse</span>`;
+  lastStep=-1;
+}
+function render(){
+  readPalette();
+  const m=MECH[mech],st=m.scene(t,n);
+  ctx.setTransform(2,0,0,2,0,0);ground();
+  st.props.filter(p=>p.k!=='plateFly').forEach(p=>drawProp(p,t));
+  drawColossus(st.c,t);
+  st.props.filter(p=>p.k==='plateFly').forEach(p=>drawProp(p,t));
+  st.ropes.forEach(r=>drawRope(r,t));
+  st.players.forEach(drawPlayer);
+  st.fx.forEach(drawFx);
+  hud(st.c.life);
+  const steps=m.steps(n);let cur=0;steps.forEach(([tt],k)=>{if(t>=tt)cur=k;});
+  if(cur!==lastStep){$('now').textContent=steps[cur][1];document.querySelectorAll('ol.steps li').forEach((li,k)=>li.classList.toggle('on',k<=cur));lastStep=cur;}
+  $('scrub').value=t.toFixed(2);$('clock').textContent=fmt(t)+' s / 12 s';
+}
+function frame(now){if(last===null)last=now;const dt=Math.min(.1,(now-last)/1000);last=now;if(playing){t+=dt;if(t>=T){t-=T;lastStep=-1;}}render();requestAnimationFrame(frame);}
+$('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'Lecture';};
+$('restart').onclick=()=>{t=0;lastStep=-1;playing=true;$('play').textContent='Pause';};
+$('scrub').oninput=e=>{t=parseFloat(e.target.value)||0;lastStep=-1;};
+$('play').textContent=playing?'Pause':'Lecture';
+refresh();requestAnimationFrame(frame);
+})();
+</script>
