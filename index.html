@@ -791,23 +791,26 @@ function mire(t,n){
 
 /* ---------- S5. L'escorter jusqu'à l'eau ---------- */
 function escort(t,n){
-  const st=S(), W={x:742,y:236}, B={x:430,y:66};
-  st.props.push({k:'water',x:W.x,y:W.y,r:48},{k:'ballista',x:B.x,y:B.y,a:PI/2});
+  const st=S(), W={x:742,y:236};
+  st.props.push({k:'water',x:W.x,y:W.y,r:48});
   const k=seg(t,.5,10.8), c=col(L(80,650,k),L(340,262,k),Math.atan2(262-340,650-80)); st.c=c; c.kneel=.15;
   const arrived=t>10.8;
   c.cistern=arrived?.9*ease(seg(t,10.8,11.8)):0;
   if(arrived&&t<11.8) st.fx.push({k:'splash',x:W.x-30,y:W.y+10,p:((t-10.8)*2)%1});
-  const crewDie=n>=2?3.6:99; squad(st,B.x,B.y-26,3,t,crewDie,.4);
   let dmg=0;
-  [2.5,5,7.5,10].forEach(s=>{ if(s<crewDie){ bolt(st,B,cpt(c,0,0),t,s); if(t>s+.5) dmg+=.14; } });
+  /* Vagues seules (choix du 7 novembre) : une première vague par le nord-ouest, puis le sud, puis le nord. */
+  const f0=cpt(c,-20,-78), w0=t<2.6?path(t,[[1,300,30],[2.6,f0.x,f0.y]]):f0;
+  const d0=n>=2?3.7:99;
+  if(t>1) squad(st,w0.x,w0.y,5,t,d0,.4);
   const wA=path(t,[[3.6,420,560],[5.6,360,430]]), wB=path(t,[[5.6,640,60],[7.6,560,318]]);
   const dA=n>=3?6.2:99, dB=n===4?8.2:n===3?8.4:99;
   if(t>3.6) squad(st,wA.x,wA.y,5,t,dA,1.1);
   if(t>5.6) squad(st,wB.x,wB.y,5,t,dB,2.3);
-  dmg+=.03*act(t,5.6,Math.min(dA,10.8))+.03*act(t,7.6,Math.min(dB,10.8));
+  dmg+=.05*act(t,2.6,Math.min(d0,10.8))+.03*act(t,5.6,Math.min(dA,10.8))+.03*act(t,7.6,Math.min(dB,10.8));
+  if(t>2.6&&t<Math.min(d0,10.8)) hits(st,cpt(c,-10,-40),t,2.6,Math.min(d0,10.8),1.6);
   const g=cpt(c,135,0), p1=t<.6?path(t,[[0,240,200],[.6,g.x,g.y]]):g;
   st.players.push({x:p1.x,y:p1.y,i:0});
-  if(n>=2){const p=path(t,[[0,80,140],[2.6,330,70],[3.1,405,56]]); st.players.push({x:p.x,y:p.y,i:1}); hits(st,{x:B.x,y:B.y-26},t,3.1,3.6,3);}
+  if(n>=2){const tgt={x:w0.x,y:w0.y-24}, p=t<3.1?path(t,[[0,80,140],[2.4,200,120],[3.1,tgt.x,tgt.y]]):tgt; st.players.push({x:p.x,y:p.y,i:1}); hits(st,w0,t,3.1,3.7,3);}
   if(n>=3){const pts=[[0,120,480],[5.2,300,470],[5.6,wA.x-20,wA.y+10]]; if(n===3) pts.push([6.4,wA.x-20,wA.y+10],[7.4,wB.x+10,wB.y-30]);
     const p=path(t,pts); st.players.push({x:p.x,y:p.y,i:2}); hits(st,wA,t,5.6,6.2,3); if(n===3) hits(st,wB,t,7.8,8.4,3);}
   if(n===4){const p=path(t,[[0,760,60],[7.2,wB.x+10,wB.y-30]]); st.players.push({x:p.x,y:p.y,i:3}); hits(st,wB,t,7.6,8.2,3);}
@@ -926,14 +929,14 @@ const SAUVER=[
    return a;},
   roles:n=>[0,1,2,3].slice(0,n).map(i=>[i,"Tire sa corde quand il pousse"]),
   coop:n=>["Seul, il sort quand même, mais en 8 poussées : il faut tirer à chacune.","À deux, il sort en quatre poussées.","À trois, en trois poussées.","À quatre, en deux poussées : il est libre très vite."][n-1]},
- {id:'escorte',name:"L'escorter jusqu'à l'eau",tag:'guide + défense',what:"Un colosse affaibli marche vers l'eau du qanat. On le guide (sans cor : Synergies propose une autre façon) et on le défend contre les soldats et une baliste. S'il tombe, on reprend au dernier point du chemin.",scene:escort,
-  steps:n=>{const a=[[0,"Un colosse affaibli porte une citerne vide vers l'eau du qanat."],[.6,"J1 marche devant : il le suit."],[2.5,"Une baliste ennemie le touche."],[5.6,"Des soldats l'attaquent par le sud."],[7.6,"D'autres par le nord."],[10.8,n===1?"Il arrive à l'eau, très affaibli.":"Il arrive à l'eau et remplit sa citerne : sauvé."]];
-   if(n>=2) a.push([3.1,"J2 tue les servants de la baliste : elle se tait."]);
+ {id:'escorte',name:"L'escorter jusqu'à l'eau",tag:'guide + défense',what:"Un colosse affaibli marche vers l'eau du qanat. On le guide (sans cor : Synergies propose une autre façon) et on le défend contre des vagues de soldats, sans baliste (choisi le 7 novembre). S'il tombe, on reprend au dernier point du chemin.",scene:escort,
+  steps:n=>{const a=[[0,"Un colosse affaibli porte une citerne vide vers l'eau du qanat."],[.6,"J1 marche devant : il le suit."],[2.5,"Une première vague de soldats l'attaque par le nord-ouest."],[5.6,"Une deuxième vague arrive par le sud."],[7.6,"Une troisième par le nord."],[10.8,n===1?"Il arrive à l'eau, très affaibli.":"Il arrive à l'eau et remplit sa citerne : sauvé."]];
+   if(n>=2) a.push([3.1,"J2 repousse la première vague."]);
    if(n===3) a.push([5.7,"J3 repousse les soldats du sud, puis ceux du nord."]);
    if(n===4) a.push([5.7,"J3 repousse ceux du sud, J4 ceux du nord."]);
    return a.sort((x,y)=>x[0]-y[0]);},
-  roles:n=>[[0,"Le guide en marchant devant"],[1,"Fait taire la baliste"],[2,n===4?"Repousse les soldats du sud":"Repousse les soldats"],[3,"Repousse les soldats du nord"]].slice(0,n),
-  coop:n=>["Seul, on ne peut pas guider et défendre à la fois : il arrive à l'eau, mais de justesse.","À deux, la baliste se tait tôt : il arrive en bien meilleur état.","À trois, J3 repousse les soldats : presque aucun coup ne le touche.","À quatre, chaque attaque a son défenseur."][n-1]},
+  roles:n=>[[0,"Le guide en marchant devant"],[1,"Repousse la première vague"],[2,n===4?"Repousse les soldats du sud":"Repousse les soldats"],[3,"Repousse les soldats du nord"]].slice(0,n),
+  coop:n=>["Seul, on ne peut pas guider et défendre à la fois : il arrive à l'eau, mais de justesse.","À deux, la première vague tombe tout de suite : il arrive en bien meilleur état.","À trois, J3 repousse les soldats : presque aucun coup ne le touche.","À quatre, chaque attaque a son défenseur."][n-1]},
  {id:'soigner',name:'Le soigner (mis de côté)',tag:'mis de côté pour l\'instant',what:"Mis de côté le 7 novembre : le concept de la jarre ne te plaisait pas. Pour mémoire : on portait des jarres depuis le puits pour remplir sa citerne.",scene:heal,
   steps:n=>{const pl2=healPlan(n);
    if(n===1) return [[0,"Un colosse à bout de forces : sa citerne est vide."],[.2,"Tu prends une jarre au puits."],[1.6,"Tu grimpes jusqu'à la citerne."],[2.4,"Tu verses."],[3.2,"Retour au puits pour la jarre suivante."],[7,"Deuxième jarre."],[10,"Seul, la citerne n'est qu'à moitié pleine."]];
