@@ -294,9 +294,9 @@ function steerSim(t,n){
 }
 function steer(t,n){
   const st=S(), d=STEER[n];
-  if(!STEER_ROCK[n]){const e=steerSim(d.imp,n); STEER_ROCK[n]=cpt(col(e.x,e.y,e.a),140,0);}
+  if(!STEER_ROCK[n]){const e=steerSim(d.imp,n), ci=col(e.x,e.y,e.a); STEER_ROCK[n]=cpt(ci,140,0); STEER_ROCK[n].w=cpt(ci,160,0); STEER_ROCK[n].ang=e.a+PI/2;}
   const R=STEER_ROCK[n];
-  st.props.push({k:'menhir',x:R.x,y:R.y,broken:false},{k:'menhir',x:300,y:110,broken:false},{k:'menhir',x:660,y:440,broken:false});
+  st.props.push({k:'muraille',x:R.w.x,y:R.w.y,ang:R.ang,len:230,seed:1},{k:'muraille',x:300,y:92,ang:.25,len:170,seed:2,ruin:true},{k:'muraille',x:665,y:455,ang:-.95,len:150,seed:3,ruin:true});
   const e=steerSim(t,n), c=col(e.x,e.y,e.a); st.c=c;
   const hit=t>d.imp;
   if(hit&&t<d.imp+4){c.stun=true;c.kneel=.5;}
@@ -983,14 +983,14 @@ const IDEES=[
    a.push([n===1?8.8:7.6,"On frappe pendant qu'il est sonné."]);return a;},
   roles:n=>n===1?[[0,"Attire, puis tire seul sur la colonne"]]:n===2?[[0,"L'attire en lui tirant à la tête"],[1,"Tire sur la colonne"]]:n===3?[[0,"L'attire en lui tirant à la tête"],[1,"Tire sur la colonne"],[2,"Le traîne sous la colonne à la corde"]]:[[0,"L'attire en lui tirant à la tête"],[1,"Tire sur la colonne"],[2,"Le traîne sous la colonne"],[3,"Enflamme le naphte"]],
   coop:n=>["Seul, attirer puis tirer demande un timing serré : souvent, la colonne ne fait qu'effleurer.","À deux, l'un attire et l'autre tire au bon moment : le coup est plein.","À trois, la corde le place exactement sous la colonne, et plus vite.","À quatre, le naphte enflammé ajoute des dégâts pendant qu'il est sonné."][n-1]},
- {id:'diriger',name:'Le diriger par le dos',tag:'escalade + pilotage',what:"Sur son dos, il fuit le coup : en bas du dos il accélère, en haut il freine puis recule à reculons, sur un côté il part de l'autre côté. Un coup, puis le doigt posé garde le cap (les rênes) ; le petit rond du centre ne pilote pas. On le fait foncer dans un rocher pour le sonner.",scene:steer,
-  steps:n=>{const d=STEER[n], a=[[0,"Le colosse marche."],[1.6,n===1?"Il pose un pied : tu t'accroches et tu grimpes sur son dos.":"Il pose un pied : J1 grimpe sur son dos."],[3,"Un coup sur le côté droit du dos, puis le doigt posé (les rênes) : il fuit le coup et tourne vers la gauche."],[d.acc,n===1?"Un coup en bas du dos : il accélère et charge.":"J2, en bas du dos, le fait accélérer pendant que J1 tient le cap."],[d.imp,"Il heurte le rocher : sonné 4 s."],[d.imp+.6,"On frappe pendant qu'il est sonné."]];
+ {id:'diriger',name:'Le diriger par le dos',tag:'escalade + pilotage',what:"Sur son dos, il fuit le coup : en bas du dos il accélère, en haut il freine puis recule à reculons, sur un côté il part de l'autre côté. Un coup, puis le doigt posé garde le cap (les rênes) ; le petit rond du centre ne pilote pas. On le fait foncer dans une ancienne muraille pour le sonner.",scene:steer,
+  steps:n=>{const d=STEER[n], a=[[0,"Le colosse marche."],[1.6,n===1?"Il pose un pied : tu t'accroches et tu grimpes sur son dos.":"Il pose un pied : J1 grimpe sur son dos."],[3,"Un coup sur le côté droit du dos, puis le doigt posé (les rênes) : il fuit le coup et tourne vers la gauche."],[d.acc,n===1?"Un coup en bas du dos : il accélère et charge.":"J2, en bas du dos, le fait accélérer pendant que J1 tient le cap."],[d.imp,"Il heurte la muraille : sonné 4 s."],[d.imp+.6,"On frappe pendant qu'il est sonné."]];
    if(n>=2) a.push([2.2,"J2 grimpe par l'autre jambe."]);
-   if(n>=3) a.push([2.6,"J3, près du rocher, lui tire dans la tête : il se tourne vers lui."]);
-   if(n===4) a.push([d.imp+.4,"J4 attendait au rocher : il frappe la nuque."]);
+   if(n>=3) a.push([2.6,"J3, près de la muraille, lui tire dans la tête : il se tourne vers lui."]);
+   if(n===4) a.push([d.imp+.4,"J4 attendait à la muraille : il frappe la nuque."]);
    return a.sort((x,y)=>x[0]-y[0]);},
-  roles:n=>n===1?[[0,"Grimpe et le dirige par le dos"]]:[[0,"Tient le cap, sur le côté du dos"],[1,"Le fait accélérer, en bas du dos"],[2,"Lui tire dans la tête depuis le rocher"],[3,"Attend au rocher et frappe la nuque"]].slice(0,n),
-  coop:n=>["Seul, on dirige puis on accélère soi-même : la charge vient tard.","À deux, l'un tient le cap pendant que l'autre accélère : les poussées s'additionnent.","À trois, les flèches de J3 dans sa tête le tournent vers le rocher.","À quatre, J4 attend au rocher et frappe la nuque dès le choc."][n-1]},
+  roles:n=>n===1?[[0,"Grimpe et le dirige par le dos"]]:[[0,"Tient le cap, sur le côté du dos"],[1,"Le fait accélérer, en bas du dos"],[2,"Lui tire dans la tête depuis la muraille"],[3,"Attend à la muraille et frappe la nuque"]].slice(0,n),
+  coop:n=>["Seul, on dirige puis on accélère soi-même : la charge vient tard.","À deux, l'un tient le cap pendant que l'autre accélère : les poussées s'additionnent.","À trois, les flèches de J3 dans sa tête le tournent vers la muraille.","À quatre, J4 attend à la muraille et frappe la nuque dès le choc."][n-1]},
  {id:'attention',name:'Attirer son attention',tag:'arc + escalade + miroir',what:"Des flèches dans sa tête attirent son regard (le cor est abandonné). Pendant qu'il regarde ailleurs, les autres grimpent dans son dos. Le miroir de bronze, dès la première version, l'éblouit : il s'agenouille 4 s.",scene:attention,
   steps:n=>{const a=[[0,"Le colosse fait face aux cavaliers."]];
    if(n===1)a.push([1.2,"Tu lui tires dans la tête depuis le nord : il se retourne."],[3.2,"Tu fais le tour au galop pour passer derrière."],[6.5,"Tu t'accroches avant qu'il se retourne."],[7.6,"Tu frappes son dos."]);
@@ -1043,6 +1043,7 @@ function drawProp(p,t){
     if(p.fall<=0){ctx.fillStyle=P.shadow;ctx.beginPath();ctx.ellipse(p.x+14,p.y+18,26,20,0,0,2*PI);ctx.fill();ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,22,0,2*PI);ctx.fill();ctx.stroke();ctx.beginPath();ctx.arc(p.x,p.y,12,0,2*PI);ctx.stroke();}
     else{ctx.translate(p.x,p.y);ctx.rotate(p.ang);const len=26+150*p.fall;ctx.fillStyle=P.shadow;rr(-10,-6,len+16,40,8);ctx.fill();ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=2;rr(-18,-17,len,34,8);ctx.fill();ctx.stroke();for(let k=1;k<4;k++){const x=-18+len*k/4;ctx.beginPath();ctx.moveTo(x,-17);ctx.lineTo(x,17);ctx.stroke();}}
   }
+  else if(p.k==='muraille'){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.ang);const L=p.len,T=26,nb=Math.round(L/24),bw=L/nb;ctx.fillStyle=P.shadow;rr(-L/2+8,-T/2+10,L,T,6);ctx.fill();for(let k=0;k<nb;k++){const h=((k*53+p.seed*31)%17)/17;if(p.ruin&&h>.78)continue;const x0=-L/2+k*bw,dy=p.ruin?(h-.5)*6:0;ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=1.6;rr(x0+1,-T/2+dy,bw-2,T,3);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(x0+3,dy);ctx.lineTo(x0+bw-3,dy);ctx.stroke();}if(p.ruin){ctx.fillStyle=P.slab;ctx.strokeStyle=P.stoneDk;ctx.lineWidth=1.2;for(let k=0;k<5;k++){const rx=-L/2+((k*71+p.seed*13)%100)/100*L,ry=T/2+8+((k*29)%12);ctx.beginPath();ctx.ellipse(rx,ry,6+k%3*2,4,k,0,2*PI);ctx.fill();ctx.stroke();}}ctx.restore();}
   else if(p.k==='wall'){ctx.fillStyle=P.stoneDk;ctx.fillRect(p.x,p.y,p.w,p.h);ctx.strokeStyle=P.slab;ctx.lineWidth=1;for(let y=p.y;y<p.y+p.h;y+=20){ctx.beginPath();ctx.moveTo(p.x,y);ctx.lineTo(p.x+p.w,y);ctx.stroke();const o=((y-p.y)/20)%2?10:20;ctx.beginPath();ctx.moveTo(p.x+o,y);ctx.lineTo(p.x+o,y+20);ctx.stroke();}}
   else if(p.k==='ballista'){ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.strokeStyle=P.rope;ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-18,0);ctx.lineTo(22,0);ctx.stroke();ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(10,-24);ctx.quadraticCurveTo(22,0,10,24);ctx.stroke();ctx.strokeStyle=P.ink;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(10,-24);ctx.lineTo(-10,0);ctx.lineTo(10,24);ctx.stroke();}
   else if(p.k==='depot'){ctx.fillStyle=P.rope;for(let k=0;k<3;k++){rr(p.x-22+k*15,p.y-8,12,16,2);ctx.fill();}}
