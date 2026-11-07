@@ -83,7 +83,7 @@ ul.roles li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:sta
 <div class="wrap">
   <header>
     <h1>Gestes contre les colosses</h1>
-    <p class="lede">Les gestes déjà dans le jeu, huit idées de nouvelles mécaniques, et sept idées pour sauver un colosse, vus de dessus. Choisis un geste et un nombre de joueurs : l'animation montre ce que chacun fait et ce que la coopération change.</p>
+    <p class="lede">Les gestes déjà dans le jeu, puis les mécaniques décidées le 7 novembre, en cours de code : huit contre les colosses et sept pour en sauver un, vues de dessus. Le cor est abandonné : on attire un colosse en lui tirant dans la tête. Choisis un geste et un nombre de joueurs : l'animation montre ce que chacun fait et ce que la coopération change.</p>
   </header>
 
   <section class="controls" aria-label="Choix">
@@ -92,11 +92,11 @@ ul.roles li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:sta
       <div class="tabs" id="tabs-jeu" role="group" aria-labelledby="lbl-jeu"></div>
     </div>
     <div class="group">
-      <span class="label" id="lbl-idee">Idées, rien n'est codé</span>
+      <span class="label" id="lbl-idee">Contre les colosses : décidé le 7 novembre, en cours de code</span>
       <div class="tabs" id="tabs-idee" role="group" aria-labelledby="lbl-idee"></div>
     </div>
     <div class="group">
-      <span class="label" id="lbl-sauver">Sauver un colosse : idées, rien n'est codé</span>
+      <span class="label" id="lbl-sauver">Sauver un colosse : décidé le 7 novembre, en cours de code</span>
       <div class="tabs" id="tabs-sauver" role="group" aria-labelledby="lbl-sauver"></div>
     </div>
     <div class="group">
@@ -158,7 +158,7 @@ function col(x,y,a=0){return {x,y,a,kneel:0,shake:0,stun:false,plate:false,weak:
 function cpt(c,lx,ly){const s=Math.sin(c.a),k=Math.cos(c.a);return {x:c.x+lx*k-ly*s,y:c.y+lx*s+ly*k};}
 function S(){return {c:null,players:[],ropes:[],props:[],fx:[]};}
 function hits(st,pt,t,a,b,rate=2.5){ if(t>a&&t<b){const ph=((t-a)*rate)%1; if(ph<.4) st.fx.push({k:'hit',x:pt.x,y:pt.y,p:ph/.4});}}
-function horn(st,i,p,t,a,b){ if(t>a&&t<b){ for(let k=0;k<2;k++){const ph=(((t-a)*1.1)+k*.5)%1; st.fx.push({k:'ring',i,x:p.x,y:p.y,r:14+ph*80,al:1-ph});}}}
+function horn(st,i,p,t,a,b){ if(t>a&&t<b){ st.fx.push({k:'aim',x:p.x,y:p.y,ph:((t-a)*1.2)%1}); } } // plus de cor : des flèches dans la tête
 function arrow(st,from,to,t,a,dur=.4,extra){ if(t>a&&t<a+dur) st.fx.push(Object.assign({k:'arrow',x1:from.x,y1:from.y,x2:to.x,y2:to.y,p:(t-a)/dur},extra||{})); }
 function arrowsLoop(st,from,to,t,a,b,rate=1.2){ if(t>a&&t<b){const ph=((t-a)*rate)%1; if(ph<.45) st.fx.push({k:'arrow',x1:from.x,y1:from.y,x2:to.x,y2:to.y,p:ph/.45}); else if(ph<.62) st.fx.push({k:'hit',x:to.x,y:to.y,p:(ph-.45)/.17});}}
 
@@ -284,37 +284,47 @@ function decor(t,n){
   c.life=1-dmg; return st;
 }
 
-/* ---------- 4. Le chevaucher et le diriger ---------- */
+/* ---------- 4. Le diriger par le dos ---------- */
+const STEER={1:{acc:5.2,turn:[3.3,5],imp:7.8},2:{acc:4.4,turn:[3.3,5],imp:6.8},3:{acc:4.4,turn:[3,4.2],imp:6.4},4:{acc:4.4,turn:[3,4.2],imp:6.4}};
+const STEER_ROCK={};
+function steerSim(t,n){
+  const d=STEER[n], T=Math.min(t,d.imp); let x=190,y=340;
+  for(let u=0;u<T;u+=.02){const s=Math.min(.02,T-u), a=-.62*ease(seg(u,d.turn[0],d.turn[1])), v=(u<2.6?18:25)+48*seg(u,d.acc,d.acc+.6); x+=Math.cos(a)*v*s; y+=Math.sin(a)*v*s;}
+  return {x,y,a:-.62*ease(seg(T,d.turn[0],d.turn[1]))};
+}
 function steer(t,n){
-  const st=S(); st.props.push({k:'wall',x:712,y:130,w:40,h:260});
-  const wob=n===1?1:n===2?.8:n===3?.45:0;
-  const arrive=n===1?9.2:n===2?9:n===3?8.4:8;
-  const env=seg(t,4.6,5.4)*(1-seg(t,arrive-.6,arrive));
-  const x=L(300,646,ease(seg(t,4.6,arrive)));
-  const y=260+wob*48*Math.sin(t*2.2)*env;
-  const c=col(x,y,wob*.38*Math.sin(t*2.2+1)*env); st.c=c;
-  const crash=t>arrive;
-  if(crash&&t<11.6){ c.stun=true; c.kneel=.5; }
-  if(crash&&t<arrive+.6) st.fx.push({k:'snap',x:704,y:c.y,p:seg(t,arrive,arrive+.6),big:true});
-  let dmg=crash?.35:0;
+  const st=S(), d=STEER[n];
+  if(!STEER_ROCK[n]){const e=steerSim(d.imp,n); STEER_ROCK[n]=cpt(col(e.x,e.y,e.a),140,0);}
+  const R=STEER_ROCK[n];
+  st.props.push({k:'menhir',x:R.x,y:R.y,broken:false},{k:'menhir',x:300,y:110,broken:false},{k:'menhir',x:660,y:440,broken:false});
+  const e=steerSim(t,n), c=col(e.x,e.y,e.a); st.c=c;
+  const hit=t>d.imp;
+  if(hit&&t<d.imp+4){c.stun=true;c.kneel=.5;}
+  if(hit&&t<d.imp+.6) st.fx.push({k:'snap',x:R.x-12,y:R.y,p:seg(t,d.imp,d.imp+.6),big:true});
+  let dmg=hit?.25:0;
   {
-    const bl=cpt(c,-58,54), head=cpt(c,98,0);
-    const p=t<4.6?path(t,[[0,170,470],[1.6,bl.x-10,bl.y+44],[2.4,bl.x,bl.y+12],[3.4,c.x-30,c.y],[4.4,head.x,head.y]]):head;
-    st.players.push({x:p.x,y:p.y,i:0,on:t>2.3});
+    let p;
+    if(t<1.6){const g=cpt(c,-64,96); p=path(t,[[0,110,480],[1.5,g.x,g.y]]);}
+    else {const q=n===1?path(t,[[1.6,-64,96],[2.2,-58,58],[2.8,-20,24],[d.acc-.5,-20,24],[d.acc,-60,0]]):path(t,[[1.6,-64,96],[2.2,-58,58],[2.8,-20,24]]); p=cpt(c,q.x,q.y);}
+    st.players.push({x:p.x,y:p.y,i:0,on:t>1.9});
+    hits(st,cpt(c,-10,36),t,3,3.3,3);
+    if(n===1) hits(st,cpt(c,-64,0),t,d.acc,d.acc+.3,3);
+    if(hit){const b=Math.min(11.8,d.imp+4); hits(st,cpt(c,30,0),t,d.imp+.6,b,2.6); dmg+=act(t,d.imp+.6,b)*.04;}
   }
   if(n>=2){
-    const br=cpt(c,-58,-54), bk=cpt(c,-22,0);
-    const p=t<4.8?path(t,[[0,170,50],[2,br.x-10,br.y-44],[2.8,br.x,br.y-12],[3.8,bk.x,bk.y]]):bk;
-    st.players.push({x:p.x,y:p.y,i:1,on:t>2.7}); hits(st,cpt(c,-22,-22),t,4.8,11.4,2.8); dmg+=act(t,4.8,11.4)*.05;
+    let p;
+    if(t<2.2){const g=cpt(c,-64,-96); p=path(t,[[0,110,60],[2.1,g.x,g.y]]);}
+    else {const q=path(t,[[2.2,-64,-96],[2.8,-58,-58],[3.6,-62,-12]]); p=cpt(c,q.x,q.y);}
+    st.players.push({x:p.x,y:p.y,i:1,on:t>2.5}); hits(st,cpt(c,-66,0),t,d.acc,d.acc+.3,3);
   }
-  if(n>=3){ const p=path(t,[[0,770,490],[3,672,440],[11.5,672,440]]); st.players.push({x:p.x,y:p.y,i:2}); horn(st,2,p,t,4.4,arrive); }
+  if(n>=3){const p=path(t,[[0,R.x+130,R.y-40],[1.5,R.x+80,R.y-70]]); st.players.push({x:p.x,y:p.y,i:2}); if(t<d.imp) arrowsLoop(st,p,cpt(c,99,0),t,2.6,d.imp,1.2);}
   if(n===4){
-    const rl=cpt(c,-58,54);
-    const p=path(t,[[0,40,490],[3.4,rl.x-80,rl.y+80],[4.6,rl.x-60,rl.y+92],[arrive,x-170,c.y+110],[11.5,x-170,c.y+110]]);
-    st.players.push({x:p.x,y:p.y,i:3}); arrow(st,p,rl,t,3.6,.3);
-    if(t>3.9&&t<arrive+.2) st.ropes.push({a:rl,b:p,tension:.78});
+    const w={x:R.x+40,y:R.y+70}; let p=path(t,[[0,R.x+90,R.y+140],[2,w.x,w.y]]);
+    if(hit){const g=cpt(c,128,14); p=path(t,[[d.imp,w.x,w.y],[d.imp+.4,g.x,g.y]]);}
+    st.players.push({x:p.x,y:p.y,i:3});
+    if(hit){const b=Math.min(11.8,d.imp+4); hits(st,cpt(c,99,0),t,d.imp+.5,b,3); dmg+=act(t,d.imp+.5,b)*.08;}
   }
-  c.life=1-dmg; return st;
+  c.life=Math.max(0,1-dmg); return st;
 }
 
 /* ---------- 5. Attirer son attention ---------- */
@@ -756,7 +766,7 @@ function rider(t,n){
 /* ---------- S4. Le sortir du piège ---------- */
 function mire(t,n){
   const st=S(); st.props.push({k:'marsh',x:300,y:272,rx:175,ry:125});
-  const H=[2,4,6,8,10], inc=n===1?.1:1/(6-n), outT=n===1?99:2+(5-n)*2+.7;
+  const need=n===1?8:6-n, H=Array.from({length:need},(_,k)=>1.4+1.25*k), inc=1/need, outT=1.4+1.25*(need-1)+.7;
   let p=0, heave=false; H.forEach(h=>{ p+=inc*seg(t,h,h+.7); if(t>h&&t<h+.7&&t<outT) heave=true; });
   p=clamp(p);
   const c=col(L(300,500,p)+(t>outT?60*ease(seg(t,outT,outT+1.5)):0),272,0); st.c=c;
@@ -791,7 +801,7 @@ function escort(t,n){
   if(t>5.6) squad(st,wB.x,wB.y,5,t,dB,2.3);
   dmg+=.03*act(t,5.6,Math.min(dA,10.8))+.03*act(t,7.6,Math.min(dB,10.8));
   const g=cpt(c,135,0), p1=t<.6?path(t,[[0,240,200],[.6,g.x,g.y]]):g;
-  st.players.push({x:p1.x,y:p1.y,i:0}); if(!arrived) horn(st,0,p1,t,.6,10.8);
+  st.players.push({x:p1.x,y:p1.y,i:0});
   if(n>=2){const p=path(t,[[0,80,140],[2.6,330,70],[3.1,405,56]]); st.players.push({x:p.x,y:p.y,i:1}); hits(st,{x:B.x,y:B.y-26},t,3.1,3.6,3);}
   if(n>=3){const pts=[[0,120,480],[5.2,300,470],[5.6,wA.x-20,wA.y+10]]; if(n===3) pts.push([6.4,wA.x-20,wA.y+10],[7.4,wB.x+10,wB.y-30]);
     const p=path(t,pts); st.players.push({x:p.x,y:p.y,i:2}); hits(st,wA,t,5.6,6.2,3); if(n===3) hits(st,wB,t,7.8,8.4,3);}
@@ -872,7 +882,7 @@ function salt(t,n){
     st.players.push({x:p.x,y:p.y,i,on});
     acts.forEach(([k,T])=>{const s=SALT[k], pt=cpt(c,s[0],s[1]); chips(st,pt,t,T-1.2,T); if(t>T&&t<T+.4) st.fx.push({k:'chip',x:pt.x,y:pt.y,p:seg(t,T,T+.4),big:true});});
   });
-  if(n===1){ const pt=cpt(c,-22,2); hits(st,pt,t,5.5,6.1,3); if(t>5.5&&t<6.6) st.fx.push({k:'text',x:pt.x,y:pt.y-40,s:'à côté du sel : ça le blesse'}); }
+  if(n===1){ const pt=cpt(c,-22,2); hits(st,pt,t,5.5,6.1,3); if(t>5.5&&t<6.6) st.fx.push({k:'text',x:pt.x,y:pt.y-40,s:'à côté : il frissonne'}); if(t>5.6&&t<6.3) c.shake=.7; }
   label(st,c,'réveillé',t,wake+.4,wake+2);
   const done=brk.filter(x=>t>x).length;
   st.meter={label:'Sel brisé',v:done/6,txt:done+' / 6'};
@@ -880,7 +890,7 @@ function salt(t,n){
 }
 
 const SAUVER=[
- {id:'chaines',name:'Briser ses chaînes',tag:'épée + charge',what:"L'armée tient un colosse enchaîné à des piquets. On charge les soldats qui tirent les chaînes et on les tranche à l'épée. Libre, il se retourne contre l'armée.",scene:chains,
+ {id:'chaines',name:'Briser ses chaînes',tag:'épée + charge',what:"L'armée tient un colosse enchaîné à des piquets. L'épée rebondit tant que l'équipe tire la chaîne : on la charge d'abord à cheval, puis on tranche au piquet. Libre, il devient allié jusqu'à la fin du niveau et se retourne contre l'armée.",scene:chains,
   steps:n=>{const s0=[0,"L'armée tient un colosse à genoux : quatre chaînes vont de ses jambes à des piquets, tirées par des soldats."];
    if(n===1) return [s0,[1.4,"Tu charges l'équipe du premier piquet."],[2,"Tu tranches la chaîne à l'épée."],[3,"Des renforts arrivent de l'est."],[4.6,"Deuxième piquet."],[7.8,"Troisième piquet."],[9.6,"Trois chaînes tombées : il arrache la dernière tout seul. Il est libre."],[11,"Il piétine les renforts."]];
    if(n===2) return [s0,[1.4,"J1 et J2 chargent chacun un piquet."],[2.6,"Deux chaînes tranchées."],[3,"Des renforts arrivent de l'est."],[4.6,"J1 prend un troisième piquet."],[6.2,"Il arrache la dernière chaîne : il est libre."],[7.9,"Il piétine les renforts."]];
@@ -888,46 +898,46 @@ const SAUVER=[
    return [s0,[1.4,"J1, J2 et J3 chargent trois piquets."],[2.6,"Trois chaînes tombent presque ensemble."],[3,"Des renforts arrivent de l'est."],[3.6,"Il arrache la dernière : il est libre."],[4,"J4 charge les renforts avant qu'ils arrivent."],[5,"Plus personne pour le retenir."]];},
   roles:n=>n===1?[[0,"Charge les équipes et tranche les chaînes, une à une"]]:n===2?[[0,"Tranche deux chaînes"],[1,"Tranche une chaîne"]]:[[0,"Tranche une chaîne"],[1,"Tranche une chaîne"],[2,"Tranche une chaîne"],[3,"Charge les renforts à cheval"]].slice(0,n),
   coop:n=>["Seul, une chaîne à la fois : les renforts ont le temps d'arriver.","À deux, deux chaînes tombent d'un coup : il est libre à mi-temps.","À trois, trois chaînes tombent presque ensemble : il arrache la dernière très vite.","À quatre, J4 disperse les renforts pendant que les autres tranchent."][n-1]},
- {id:'lance',name:'Arracher la lance',tag:'flèche-corde + galop',what:"Une lance géante plantée dans son dos le rend fou. On l'accroche à la flèche-corde et on galope pour l'arracher : il se calme.",scene:spear,
+ {id:'lance',name:'Arracher la lance',tag:'flèche-corde + galop',what:"Une lance géante plantée dans son dos le rend fou. On l'accroche à la flèche-corde et on tire avec élan, à cheval ou à pied (les élans s'additionnent, 7 m/s au moins). Trop lent : la corde se détache, on recommence. La lance sortie, il se calme.",scene:spear,
   steps:n=>{const o=SPEAR_OUT[n], a=[[0,"Une lance géante plantée dans son dos : fou de douleur, il frappe tout autour."]];
    if(n===1) a.push([2.2,"Tu accroches la lance avec la flèche-corde."],[2.4,"Tu galopes pour l'arracher : seul, elle bouge à peine."],[6.2,"Deuxième essai, avec plus d'élan."],[o,"La lance sort : il se calme."]);
    else { a.push([2.2,"J1 et J2 accrochent la lance."],[2.4,"Les deux chevaux tirent ensemble."],[o,"La lance sort : il se calme."]);
-     if(n>=3) a.push([1.2,"J3 sonne du cor : il se tourne vers lui et bouge moins."]);
+     if(n>=3) a.push([1.2,"J3 lui tire dans la tête : il se tourne vers lui et bouge moins."]);
      if(n===4) a.push([1.6,"J4 grimpe et dégage la lance à l'épée."]); }
    return a.sort((x,y)=>x[0]-y[0]);},
-  roles:n=>n===1?[[0,"Accroche la lance et tire, deux fois"]]:[[0,"Tire la lance"],[1,"Tire la lance"],[2,"Sonne du cor pour le tenir tourné"],[3,"Grimpe et dégage la lance"]].slice(0,n),
-  coop:n=>["Seul, un cheval ne suffit pas : il faut deux essais, et il frappe tout autour pendant ce temps.","À deux chevaux, la lance sort du premier coup.","À trois, le cor le tient tourné : la lance sort plus vite.","À quatre, J4 dégage la lance de l'intérieur : elle sort presque tout de suite."][n-1]},
- {id:'cavalier',name:'Chasser son cavalier',tag:'escalade + duel',what:"Un général ennemi pilote le colosse depuis sa nuque. On grimpe, on le fait tomber, et le colosse est à nous : on le pilote par le dos.",scene:rider,
+  roles:n=>n===1?[[0,"Accroche la lance et tire, deux fois"]]:[[0,"Tire la lance"],[1,"Tire la lance"],[2,"Lui tire dans la tête pour le tenir tourné"],[3,"Grimpe et dégage la lance"]].slice(0,n),
+  coop:n=>["Seul, un cheval ne suffit pas : il faut deux essais, et il frappe tout autour pendant ce temps.","À deux chevaux, la lance sort du premier coup.","À trois, les flèches de J3 le tiennent tourné : la lance sort plus vite.","À quatre, J4 dégage la lance de l'intérieur : elle sort presque tout de suite."][n-1]},
+ {id:'cavalier',name:'Chasser son cavalier',tag:'escalade + duel',what:"Un général ennemi pilote le colosse depuis sa nuque. On grimpe et on le bat en duel : sa garde baisse quand il vient de frapper ou qu'une flèche le touche. Il tombe, et le colosse est à nous jusqu'à la fin du niveau : on le pilote par le dos.",scene:rider,
   steps:n=>{const {grab,thr}=RIDER[n], a=[[0,"Un général ennemi est monté sur sa nuque : il pilote le colosse contre vous."],[grab,"Il pose un pied : J1 s'accroche et grimpe."],[grab+1.9,"Duel contre le général, sur la nuque."],[thr,"Le général tombe : le colosse est à vous."],[thr+.6,"J1 frappe le côté gauche de son dos : il part à droite."],[thr+3.2,"Il piétine les soldats ennemis."]];
    if(n>=2) a.push([1.5,"J2 tire à l'arc sur le général : il baisse sa garde."]);
-   if(n>=3) a.push([.9,"J3 sonne du cor devant lui : il ralentit, on grimpe plus tôt."]);
+   if(n>=3) a.push([.9,"J3 lui tire dans la tête : il ralentit, on grimpe plus tôt."]);
    if(n===4) a.push([grab+.3,"J4 grimpe par l'autre jambe : deux contre le général."]);
    return a.sort((x,y)=>x[0]-y[0]);},
-  roles:n=>[[0,"Grimpe, chasse le général, puis pilote"],[1,"Tire à l'arc sur le général"],[2,"Sonne du cor pour le ralentir"],[3,"Grimpe aussi, par l'autre jambe"]].slice(0,n),
-  coop:n=>["Seul, il faut grimper pendant qu'il charge, puis gagner le duel sur la nuque.","À deux, les flèches de J2 gênent le général : le duel est plus court.","À trois, le cor le ralentit : on grimpe plus tôt.","À quatre, deux héros contre le général : il tombe très vite, et le colosse est à vous plus longtemps."][n-1]},
- {id:'marais',name:'Le sortir du piège',tag:'flèche-corde + rythme',what:"Il s'enfonce dans un marais salant. Les cordes de plusieurs chevaux le tirent dans le même sens, au moment où il pousse.",scene:mire,
-  steps:n=>{const a=[[0,"Le colosse s'enfonce dans un marais salant."],[.9,n===1?"Tu plantes une flèche-corde dans ses cornes.":"Chacun plante sa flèche-corde dans ses cornes."],[2,n===1?"Il pousse : tu tires en même temps.":"Il pousse : tout le monde tire en même temps."],[2.8,"Entre deux poussées, tirer ne sert à rien."]];
-   if(n===1) a.push([10.7,"Seul, il n'est sorti qu'à moitié."]); else a.push([2+(5-n)*2+.7,"Il sort du marais : il est libre."]);
+  roles:n=>[[0,"Grimpe, chasse le général, puis pilote"],[1,"Tire à l'arc sur le général"],[2,"Lui tire dans la tête pour le ralentir"],[3,"Grimpe aussi, par l'autre jambe"]].slice(0,n),
+  coop:n=>["Seul, il faut grimper pendant qu'il charge, puis gagner le duel sur la nuque.","À deux, les flèches de J2 gênent le général : le duel est plus court.","À trois, les flèches de J3 le ralentissent : on grimpe plus tôt.","À quatre, deux héros contre le général : il tombe très vite, et le colosse est à vous plus longtemps."][n-1]},
+ {id:'marais',name:'Le sortir du piège',tag:'flèche-corde + rythme',what:"Il s'enfonce dans un marais salant et pousse tout seul, à son rythme. Les joueurs tirent leurs cordes, à pied ou à cheval, pendant qu'il pousse. Seul, il sort en 8 poussées ; à 2, 3 ou 4, en 4, 3 ou 2.",scene:mire,
+  steps:n=>{const a=[[0,"Le colosse s'enfonce dans un marais salant."],[.9,n===1?"Tu plantes une flèche-corde dans ses cornes.":"Chacun plante sa flèche-corde dans ses cornes."],[1.4,n===1?"Il pousse, à son rythme : tu tires en même temps.":"Il pousse, à son rythme : tout le monde tire en même temps."],[2.1,"Entre deux poussées, tirer ne sert à rien."]];
+   const need=n===1?8:6-n; a.push([1.4+1.25*(need-1)+.7,n===1?"Huitième poussée : il sort, même seul.":"Il sort du marais : il est libre."]);
    return a;},
   roles:n=>[0,1,2,3].slice(0,n).map(i=>[i,"Tire sa corde quand il pousse"]),
-  coop:n=>["Seul, une corde ne le sort qu'à moitié : il faut tirer pile quand il pousse.","À deux, il sort en quatre poussées.","À trois, en trois poussées.","À quatre, en deux poussées : il est libre très vite."][n-1]},
- {id:'escorte',name:"L'escorter jusqu'à l'eau",tag:'cor + défense',what:"Un colosse affaibli marche vers l'eau du qanat. On le guide au cor et on le défend contre les soldats et une baliste ennemie.",scene:escort,
-  steps:n=>{const a=[[0,"Un colosse affaibli porte une citerne vide vers l'eau du qanat."],[.6,"J1 le guide au cor."],[2.5,"Une baliste ennemie le touche."],[5.6,"Des soldats l'attaquent par le sud."],[7.6,"D'autres par le nord."],[10.8,n===1?"Il arrive à l'eau, très affaibli.":"Il arrive à l'eau et remplit sa citerne : sauvé."]];
+  coop:n=>["Seul, il sort quand même, mais en 8 poussées : il faut tirer à chacune.","À deux, il sort en quatre poussées.","À trois, en trois poussées.","À quatre, en deux poussées : il est libre très vite."][n-1]},
+ {id:'escorte',name:"L'escorter jusqu'à l'eau",tag:'guide + défense',what:"Un colosse affaibli marche vers l'eau du qanat. On le guide (sans cor : Synergies propose une autre façon) et on le défend contre les soldats et une baliste. S'il tombe, on reprend au dernier point du chemin.",scene:escort,
+  steps:n=>{const a=[[0,"Un colosse affaibli porte une citerne vide vers l'eau du qanat."],[.6,"J1 marche devant : il le suit."],[2.5,"Une baliste ennemie le touche."],[5.6,"Des soldats l'attaquent par le sud."],[7.6,"D'autres par le nord."],[10.8,n===1?"Il arrive à l'eau, très affaibli.":"Il arrive à l'eau et remplit sa citerne : sauvé."]];
    if(n>=2) a.push([3.1,"J2 tue les servants de la baliste : elle se tait."]);
    if(n===3) a.push([5.7,"J3 repousse les soldats du sud, puis ceux du nord."]);
    if(n===4) a.push([5.7,"J3 repousse ceux du sud, J4 ceux du nord."]);
    return a.sort((x,y)=>x[0]-y[0]);},
-  roles:n=>[[0,"Le guide au cor"],[1,"Fait taire la baliste"],[2,n===4?"Repousse les soldats du sud":"Repousse les soldats"],[3,"Repousse les soldats du nord"]].slice(0,n),
+  roles:n=>[[0,"Le guide en marchant devant"],[1,"Fait taire la baliste"],[2,n===4?"Repousse les soldats du sud":"Repousse les soldats"],[3,"Repousse les soldats du nord"]].slice(0,n),
   coop:n=>["Seul, on ne peut pas guider et défendre à la fois : il arrive à l'eau, mais de justesse.","À deux, la baliste se tait tôt : il arrive en bien meilleur état.","À trois, J3 repousse les soldats : presque aucun coup ne le touche.","À quatre, chaque attaque a son défenseur."][n-1]},
- {id:'soigner',name:'Le soigner',tag:'porter + escalade',what:"Sa citerne est vide. On porte des jarres depuis le puits, on grimpe et on la remplit. À plusieurs, on fait la chaîne.",scene:heal,
+ {id:'soigner',name:'Le soigner (mis de côté)',tag:'mis de côté pour l\'instant',what:"Mis de côté le 7 novembre : le concept de la jarre ne te plaisait pas. Pour mémoire : on portait des jarres depuis le puits pour remplir sa citerne.",scene:heal,
   steps:n=>{const pl2=healPlan(n);
    if(n===1) return [[0,"Un colosse à bout de forces : sa citerne est vide."],[.2,"Tu prends une jarre au puits."],[1.6,"Tu grimpes jusqu'à la citerne."],[2.4,"Tu verses."],[3.2,"Retour au puits pour la jarre suivante."],[7,"Deuxième jarre."],[10,"Seul, la citerne n'est qu'à moitié pleine."]];
    return [[0,"Un colosse à bout de forces : sa citerne est vide."],[1,"J2 grimpe sur son dos, près de la citerne."],[1.8,n===2?"J1 porte les jarres du puits à ses pieds.":n===3?"J1 et J3 portent les jarres à tour de rôle.":"Trois porteurs se relaient."],[3,"J2 monte chaque jarre et la verse."],[pl2.full,"La citerne est pleine : il se relève."]];},
   roles:n=>n===1?[[0,"Porte, grimpe et verse"]]:[[0,"Porte les jarres"],[1,"Sur son dos, monte les jarres et verse"],[2,"Porte les jarres"],[3,"Porte les jarres"]].slice(0,n),
   coop:n=>["Seul, il faut porter, grimper et verser : deux jarres en 12 s.","À deux, on fait la chaîne : l'un porte, l'autre verse.","À trois, deux porteurs se relaient.","À quatre, trois porteurs : la citerne se remplit en un rien de temps."][n-1]},
- {id:'sel',name:'Le réveiller',tag:'escalade + épée précise',what:"Il est figé sous une croûte de sel. On la brise aux bons endroits, sans frapper à côté, et il se réveille.",scene:salt,
+ {id:'sel',name:'Le réveiller',tag:'escalade + épée précise',what:"Il est figé sous une croûte de sel. On brise les plaques dans n'importe quel ordre, nuque comprise. Un coup à côté du sel le fait frissonner, et il se réveillera plus faible.",scene:salt,
   steps:n=>{const w=SALTPLAN[n].wake;
-   if(n===1) return [[0,"Un colosse figé sous une croûte de sel."],[.6,"Tu brises le sel de ses jambes, aux bons endroits."],[3.9,"Puis tu grimpes briser celui du dos."],[5.5,"À côté du sel, le coup le blesse : il faut viser les plaques."],[9.1,"Dernière plaque, sur la nuque."],[w,"Il se réveille et se secoue."]];
+   if(n===1) return [[0,"Un colosse figé sous une croûte de sel."],[.6,"Tu brises le sel de ses jambes, aux bons endroits."],[3.9,"Puis tu grimpes briser celui du dos."],[5.5,"À côté du sel : il frissonne, et il se réveillera plus faible."],[9.1,"Dernière plaque, sur la nuque."],[w,"Il se réveille et se secoue."]];
    if(n===2) return [[0,"Un colosse figé sous une croûte de sel."],[.5,"J2 brise le sel des jambes."],[1.7,"J1 grimpe et brise celui du dos."],[w,"Il se réveille et se secoue."]];
    if(n===3) return [[0,"Un colosse figé sous une croûte de sel."],[.5,"J2 brise le sel des jambes."],[1.7,"J1 et J3 se partagent le dos."],[w,"Il se réveille et se secoue."]];
    return [[0,"Un colosse figé sous une croûte de sel."],[.5,"J2 et J4 libèrent ses deux jambes."],[1.5,"J1 et J3 se partagent le dos."],[w,"Il se réveille et se secoue."]];},
@@ -946,52 +956,51 @@ const IDEES=[
    a.push([10.4,"Les cordes lâchent, le colosse repart."]);return a;},
   roles:n=>n===1?[[0,"Plante la corde, puis revient frapper avant qu'elle casse"]]:n===2?[[0,"Corde et piquet"],[1,"Frappe tant que la corde tient"]]:n===3?[[0,"Corde et piquet"],[1,"Corde et piquet"],[2,"Frappe pendant qu'il est tenu"]]:[[0,"Corde et piquet"],[1,"Corde et piquet"],[2,"Corde et piquet"],[3,"Grimpe et frappe la nuque"]],
   coop:n=>["Seul, la fenêtre est courte : planter la corde puis revenir frapper avant qu'elle casse. Jouable, mais tendu.","À deux, l'un tient, l'autre frappe. Une corde seule cède vite : il faut frapper fort et tôt.","À trois, deux cordes le tiennent jusqu'au bout. La fenêtre de frappe est longue.","À quatre, trois cordes le font tomber à genoux : un joueur peut monter jusqu'à la nuque. C'est la récompense de la coopération."][n-1]},
- {id:'armure',name:'Arracher son armure',tag:'corde + galop',what:"La flèche-corde accroche une plaque de pierre sur son flanc. On galope dans l'autre sens pour l'arracher : dessous, un point faible.",scene:armor,
+ {id:'armure',name:'Arracher son armure',tag:'corde + galop',what:"La flèche-corde accroche une plaque de pierre (d'abord le bouclier du Buffle). Il faut un élan d'au moins 7 m/s au moment où la corde se tend : à cheval, ou à deux à pied, les élans s'additionnent. Dessous, un point faible : ×3 pendant 20 s.",scene:armor,
   steps:n=>{const a=[[0,"Une plaque de pierre protège son flanc."]];
    if(n===1)a.push([2,"Tu accroches la plaque avec la flèche-corde."],[2.4,"Tu galopes pour tirer : seul, la plaque tient."],[6,"Deuxième essai, avec plus d'élan."],[8.6,"La plaque cède : le point faible est à nu."],[9.5,"Tu tires dans le point faible."]);
    else{a.push([2,"J1 et J2 accrochent la même plaque."],[2.4,"Ils galopent ensemble : la tension monte vite."],[5.4,"La plaque cède du premier coup."]);
     if(n===2)a.push([6.3,"Les deux tirent dans le point faible."]);
     if(n===3)a.push([6,"J3 tire dans le point faible pendant que J1 et J2 reviennent."]);
-    if(n===4)a.push([5,"J3 sonne du cor : le colosse se tourne vers lui."],[6.7,"J4 frappe le point faible à l'épée."]);}
+    if(n===4)a.push([5,"J3 lui tire dans la tête : le colosse se tourne vers lui."],[6.7,"J4 frappe le point faible à l'épée."]);}
    return a;},
-  roles:n=>n===1?[[0,"Accroche, tire deux fois, puis vise le point faible"]]:n===2?[[0,"Tire sur la plaque"],[1,"Tire sur la plaque"]]:n===3?[[0,"Tire sur la plaque"],[1,"Tire sur la plaque"],[2,"Archer sur le point faible"]]:[[0,"Tire sur la plaque"],[1,"Tire sur la plaque"],[2,"Sonne du cor pour tourner le colosse"],[3,"Frappe le point faible"]],
-  coop:n=>["Seul, il faut deux essais : la plaque est trop lourde pour un cheval.","À deux, les deux chevaux tirent la même corde : la plaque cède du premier coup.","À trois, un archer attend le point faible pendant que les autres reviennent.","À quatre, le cor tourne le colosse pour présenter le point faible à l'épée."][n-1]},
+  roles:n=>n===1?[[0,"Accroche, tire deux fois, puis vise le point faible"]]:n===2?[[0,"Tire sur la plaque"],[1,"Tire sur la plaque"]]:n===3?[[0,"Tire sur la plaque"],[1,"Tire sur la plaque"],[2,"Archer sur le point faible"]]:[[0,"Tire sur la plaque"],[1,"Tire sur la plaque"],[2,"Lui tire dans la tête pour le tourner"],[3,"Frappe le point faible"]],
+  coop:n=>["Seul, il faut deux essais : la plaque est trop lourde pour un cheval.","À deux, les deux chevaux tirent la même corde : la plaque cède du premier coup.","À trois, un archer attend le point faible pendant que les autres reviennent.","À quatre, les flèches de J3 dans sa tête le tournent pour présenter le point faible à l'épée."][n-1]},
  {id:'decor',name:'Le décor comme arme',tag:'colonne + naphte',what:"On attire le colosse sous une colonne, puis on l'abat d'une flèche. À quatre, une flaque de naphte s'enflamme sous lui.",scene:decor,
-  steps:n=>{const a=[[0,"Une colonne se dresse dans l'arène."],[1.6,"J1 sonne du cor : le colosse le suit."]];
+  steps:n=>{const a=[[0,"Une colonne se dresse dans l'arène."],[1.6,"J1 lui tire dans la tête : le colosse le suit."]];
    if(n>=3)a.push([2.6,"J3 accroche une jambe et le tire sous la colonne."]);
    if(n===1)a.push([6.4,"Tu cours vers la colonne pour la viser."],[7.6,"Tir trop tard : il est déjà passé, la colonne ne touche que l'arrière."]);
    else a.push([5.8,"J2 tire sur la base de la colonne."],[6.9,"La colonne tombe sur son dos : sonné."]);
    if(n===4)a.push([6.9,"J4 tire une flèche enflammée dans le naphte."]);
    a.push([n===1?8.8:7.6,"On frappe pendant qu'il est sonné."]);return a;},
-  roles:n=>n===1?[[0,"Attire, puis tire seul sur la colonne"]]:n===2?[[0,"Attire au cor"],[1,"Tire sur la colonne"]]:n===3?[[0,"Attire au cor"],[1,"Tire sur la colonne"],[2,"Le traîne sous la colonne à la corde"]]:[[0,"Attire au cor"],[1,"Tire sur la colonne"],[2,"Le traîne sous la colonne"],[3,"Enflamme le naphte"]],
+  roles:n=>n===1?[[0,"Attire, puis tire seul sur la colonne"]]:n===2?[[0,"L'attire en lui tirant à la tête"],[1,"Tire sur la colonne"]]:n===3?[[0,"L'attire en lui tirant à la tête"],[1,"Tire sur la colonne"],[2,"Le traîne sous la colonne à la corde"]]:[[0,"L'attire en lui tirant à la tête"],[1,"Tire sur la colonne"],[2,"Le traîne sous la colonne"],[3,"Enflamme le naphte"]],
   coop:n=>["Seul, attirer puis tirer demande un timing serré : souvent, la colonne ne fait qu'effleurer.","À deux, l'un attire et l'autre tire au bon moment : le coup est plein.","À trois, la corde le place exactement sous la colonne, et plus vite.","À quatre, le naphte enflammé ajoute des dégâts pendant qu'il est sonné."][n-1]},
- {id:'diriger',name:'Le chevaucher et le diriger',tag:'escalade + mur',what:"Arrivé à sa tête, on le dirige comme une monture et on le fait foncer dans un mur. Idée remplacée par « le dos qui pilote » : on frappe un côté du dos et il fuit le coup (concept en cours).",scene:steer,
-  steps:n=>{const a=[[0,"Tu approches à cheval."],[2.3,"Tu t'accroches à une patte et tu grimpes."],[4.4,"Arrivé à la tête, tu le diriges vers le mur."]];
-   if(n===1)a.push([5,"Il se débat : la course zigzague."]);
-   if(n>=2)a.push([4.8,"J2 frappe son dos pendant la course."]);
-   if(n===3)a.push([5,"Le cor de J3 au pied du mur le fait foncer plus droit."]);
-   if(n===4)a.push([5,"La corde de J4 sur sa patte arrière l'empêche de dévier."]);
-   a.push([n===1?9.2:n===2?9:n===3?8.4:8,"Il percute le mur : sonné."]);return a;},
-  roles:n=>n===1?[[0,"Grimpe jusqu'à la tête et dirige"]]:n===2?[[0,"Dirige depuis la tête"],[1,"Frappe le dos pendant la course"]]:n===3?[[0,"Dirige"],[1,"Frappe le dos"],[2,"Sonne du cor au pied du mur"]]:[[0,"Dirige"],[1,"Frappe le dos"],[2,"Sonne du cor"],[3,"Tient une corde pour qu'il reste droit"]],
-  coop:n=>["Seul, il se débat beaucoup : la course est longue et zigzague.","À deux, l'un dirige pendant que l'autre frappe : la course fait des dégâts.","À trois, le cor guide le colosse : il arrive plus vite.","À quatre, la corde le garde droit : choc net et rapide."][n-1]},
- {id:'attention',name:'Attirer son attention',tag:'cor + escalade',what:"Le cor attire son regard. Pendant qu'il regarde ailleurs, les autres grimpent dans son dos.",scene:attention,
-  steps:n=>{const a=[[0,"Le colosse fait face aux cavaliers."]];
-   if(n===1)a.push([1.2,"Tu sonnes du cor au nord : il se retourne."],[3.2,"Tu fais le tour au galop pour passer derrière."],[6.5,"Tu t'accroches avant qu'il se retourne."],[7.6,"Tu frappes son dos."]);
-   if(n===2)a.push([1.2,"J2 sonne du cor : il regarde vers lui."],[2.8,"J1 grimpe par derrière, sans être vu."],[4.4,"J1 frappe, J2 garde son attention."]);
-   if(n===3)a.push([1.2,"J2 sonne du cor au nord."],[3.4,"J1 grimpe par le côté."],[5.4,"J3 prend le relais au sud : il se retourne encore."]);
-   if(n===4)a.push([1.2,"J3 sonne du cor au nord."],[2.8,"J1 et J2 grimpent des deux côtés."],[5.4,"J4 prend le relais au sud."],[4.4,"J1 et J2 frappent ensemble."]);
+ {id:'diriger',name:'Le diriger par le dos',tag:'escalade + pilotage',what:"Sur son dos, il fuit le coup : en bas du dos il accélère, en haut il freine puis recule à reculons, sur un côté il part de l'autre côté. Un coup, puis le doigt posé garde le cap (les rênes) ; le petit rond du centre ne pilote pas. On le fait foncer dans un rocher pour le sonner.",scene:steer,
+  steps:n=>{const d=STEER[n], a=[[0,"Le colosse marche."],[1.6,n===1?"Il pose un pied : tu t'accroches et tu grimpes sur son dos.":"Il pose un pied : J1 grimpe sur son dos."],[3,"Un coup sur le côté droit du dos, puis le doigt posé (les rênes) : il fuit le coup et tourne vers la gauche."],[d.acc,n===1?"Un coup en bas du dos : il accélère et charge.":"J2, en bas du dos, le fait accélérer pendant que J1 tient le cap."],[d.imp,"Il heurte le rocher : sonné 4 s."],[d.imp+.6,"On frappe pendant qu'il est sonné."]];
+   if(n>=2) a.push([2.2,"J2 grimpe par l'autre jambe."]);
+   if(n>=3) a.push([2.6,"J3, près du rocher, lui tire dans la tête : il se tourne vers lui."]);
+   if(n===4) a.push([d.imp+.4,"J4 attendait au rocher : il frappe la nuque."]);
    return a.sort((x,y)=>x[0]-y[0]);},
-  roles:n=>n===1?[[0,"Sonne du cor, fait le tour et grimpe"]]:n===2?[[0,"Grimpe et frappe"],[1,"Sonne du cor"]]:n===3?[[0,"Grimpe et frappe"],[1,"Cor au nord"],[2,"Cor au sud, en relais"]]:[[0,"Grimpe et frappe"],[1,"Grimpe et frappe"],[2,"Cor au nord"],[3,"Cor au sud, en relais"]],
-  coop:n=>["Seul, il faut sonner puis faire tout le tour avant qu'il se retourne : c'est une course.","À deux, un joueur garde son attention en continu : l'autre grimpe tranquillement.","À trois, deux cors en relais le font tourner en rond : le grimpeur n'est jamais vu.","À quatre, deux grimpeurs frappent ensemble pendant que deux cors le tiennent occupé."][n-1]},
- {id:'siege',name:'Les engins de siège',tag:'baliste + munitions',what:"Une baliste tire de gros carreaux. Il faut aller chercher les munitions au dépôt.",scene:siege,
+  roles:n=>n===1?[[0,"Grimpe et le dirige par le dos"]]:[[0,"Tient le cap, sur le côté du dos"],[1,"Le fait accélérer, en bas du dos"],[2,"Lui tire dans la tête depuis le rocher"],[3,"Attend au rocher et frappe la nuque"]].slice(0,n),
+  coop:n=>["Seul, on dirige puis on accélère soi-même : la charge vient tard.","À deux, l'un tient le cap pendant que l'autre accélère : les poussées s'additionnent.","À trois, les flèches de J3 dans sa tête le tournent vers le rocher.","À quatre, J4 attend au rocher et frappe la nuque dès le choc."][n-1]},
+ {id:'attention',name:'Attirer son attention',tag:'arc + escalade + miroir',what:"Des flèches dans sa tête attirent son regard (le cor est abandonné). Pendant qu'il regarde ailleurs, les autres grimpent dans son dos. Le miroir de bronze, dès la première version, l'éblouit : il s'agenouille 4 s.",scene:attention,
+  steps:n=>{const a=[[0,"Le colosse fait face aux cavaliers."]];
+   if(n===1)a.push([1.2,"Tu lui tires dans la tête depuis le nord : il se retourne."],[3.2,"Tu fais le tour au galop pour passer derrière."],[6.5,"Tu t'accroches avant qu'il se retourne."],[7.6,"Tu frappes son dos."]);
+   if(n===2)a.push([1.2,"J2 lui tire dans la tête : il regarde vers lui."],[2.8,"J1 grimpe par derrière, sans être vu."],[4.4,"J1 frappe, J2 garde son attention."]);
+   if(n===3)a.push([1.2,"J2 lui tire dans la tête depuis le nord."],[3.4,"J1 grimpe par le côté."],[5.4,"J3 prend le relais au sud : il se retourne encore."]);
+   if(n===4)a.push([1.2,"J3 lui tire dans la tête depuis le nord."],[2.8,"J1 et J2 grimpent des deux côtés."],[5.4,"J4 prend le relais au sud."],[4.4,"J1 et J2 frappent ensemble."]);
+   return a.sort((x,y)=>x[0]-y[0]);},
+  roles:n=>n===1?[[0,"Tire à la tête, fait le tour et grimpe"]]:n===2?[[0,"Grimpe et frappe"],[1,"Tire à la tête"]]:n===3?[[0,"Grimpe et frappe"],[1,"Tire à la tête depuis le nord"],[2,"Prend le relais au sud"]]:[[0,"Grimpe et frappe"],[1,"Grimpe et frappe"],[2,"Tire à la tête depuis le nord"],[3,"Prend le relais au sud"]],
+  coop:n=>["Seul, il faut tirer puis faire tout le tour avant qu'il se retourne : c'est une course.","À deux, un joueur garde son attention en continu : l'autre grimpe tranquillement.","À trois, deux archers en relais le font tourner en rond : le grimpeur n'est jamais vu.","À quatre, deux grimpeurs frappent ensemble pendant que deux archers le tiennent occupé."][n-1]},
+ {id:'siege',name:'Les engins de siège',tag:'baliste + munitions',what:"Une baliste tire de gros carreaux, d'abord dans l'arène de L'Enclume. Il faut aller chercher les munitions au dépôt (le même port d'objet que le reste du jeu). La baliste ennemie viendra plus tard.",scene:siege,
   steps:n=>{const a=[[0,"Une baliste est installée au bord de l'arène."],[1.6,"Premier carreau : touché."]];
    if(n===1)a.push([2.2,"Tu galopes au dépôt chercher un carreau."],[6,"Tu recharges."],[7.6,"Deuxième tir : seulement deux en 12 s."]);
    else a.push([2,"J2 fait la navette avec le dépôt : un tir toutes les 3 s."]);
-   if(n>=3)a.push([.8,"J3 sonne du cor : le colosse reste immobile, dos tourné."]);
+   if(n>=3)a.push([.8,"J3 lui tire dans la tête : il reste tourné vers lui, dos à la baliste."]);
    if(n===4)a.push([3.1,"Une deuxième baliste tire depuis l'est."]);
    return a.sort((x,y)=>x[0]-y[0]);},
-  roles:n=>n===1?[[0,"Vise, puis va chercher les carreaux"]]:n===2?[[0,"Vise et tire"],[1,"Apporte les carreaux"]]:n===3?[[0,"Vise et tire"],[1,"Apporte les carreaux"],[2,"Attire le colosse au cor"]]:[[0,"Baliste ouest"],[1,"Apporte les carreaux"],[2,"Attire au cor"],[3,"Baliste est, recharge seul"]],
-  coop:n=>["Seul, chaque tir coûte un aller-retour au dépôt : deux tirs en 12 s.","À deux, la navette double la cadence : quatre tirs.","À trois, le cor le garde immobile : aucun tir ne se perd.","À quatre, deux balistes croisent leurs tirs."][n-1]},
+  roles:n=>n===1?[[0,"Vise, puis va chercher les carreaux"]]:n===2?[[0,"Vise et tire"],[1,"Apporte les carreaux"]]:n===3?[[0,"Vise et tire"],[1,"Apporte les carreaux"],[2,"Lui tire dans la tête pour le tourner"]]:[[0,"Baliste ouest"],[1,"Apporte les carreaux"],[2,"L'attire en lui tirant à la tête"],[3,"Baliste est, recharge seul"]],
+  coop:n=>["Seul, chaque tir coûte un aller-retour au dépôt : deux tirs en 12 s.","À deux, la navette double la cadence : quatre tirs.","À trois, les flèches de J3 le gardent tourné : aucun tir ne se perd.","À quatre, deux balistes croisent leurs tirs."][n-1]},
  {id:'grappin',name:'La corde-grappin',tag:'flèche-corde + escalade',what:"Une flèche-corde plantée dans son dos sert d'échelle : plus besoin d'attendre qu'il pose un pied.",scene:grapple,
   steps:n=>{const a=[[0,"Le colosse avance."],[1.4,"J1 plante une flèche-corde dans son dos."]];
    if(n===1)a.push([2,"Tu grimpes à la corde : elle balance."],[4,"Il se secoue : tu t'agrippes."],[7.5,"Nouvelle secousse."],[10,"Tu arrives enfin sur son dos."]);
@@ -1158,6 +1167,7 @@ function render(){
   st.props.filter(p=>p.k==='plateFly'||p.over).forEach(p=>drawProp(p,t));
   st.ropes.forEach(r=>drawRope(r,t));
   st.players.forEach(drawPlayer);
+  st.fx=st.fx.flatMap(f=>{ if(f.k!=='aim') return [f]; const h=cpt(st.c,99,0); if(f.ph<.45) return [{k:'arrow',x1:f.x,y1:f.y,x2:h.x,y2:h.y,p:f.ph/.45}]; if(f.ph<.62) return [{k:'hit',x:h.x,y:h.y,p:(f.ph-.45)/.17}]; return []; });
   st.fx.forEach(drawFx);
   hud(st.c.life,st.meter);
   const steps=m.steps(n);let cur=0;steps.forEach(([tt],k)=>{if(t>=tt)cur=k;});
